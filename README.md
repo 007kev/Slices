@@ -1,2 +1,1 @@
-# Slices
-# Slices
+This will be the READ me file
