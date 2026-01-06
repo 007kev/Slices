@@ -88,6 +88,13 @@ plt.axvline(mass_n, linestyle='--', label=f'Antineutron {mass_n}GeV' )
 plt.xlabel('Missing Mass(GeV)')
 plt.ylabel('Counts')
 plt.title('Missing Mass Distribution (no cuts)')
+
+plt.text(
+    1.5, 70000,
+    'Foward Detector Data',
+    bbox=dict(boxstyle='round', facecolor='white', alpha=1)
+)
+
 plt.tight_layout()
 plt.savefig('MM_no_cuts.pdf')
 plt.show()
@@ -105,6 +112,14 @@ plt.axvline(2*mass_p + mass_pim + mass_n, color = 'red')
 plt.xlabel('W (no cuts)')
 plt.ylabel('Counts')
 plt.title('Hadronic Invariant Mass Distribution(no cuts)')
+
+
+plt.text(
+    0.05, 0.95e6,
+    'Beam: 10.6 GeV\nTarget: proton',
+    bbox=dict(boxstyle='round', facecolor='white', alpha=0.8)
+)
+
 plt.tight_layout()
 plt.savefig('W_no_cuts_ZOOM_OUT.pdf')
 plt.show()
