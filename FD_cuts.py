@@ -2,7 +2,7 @@
 #Author: Kevin Arias
 
 # importing libraries
-
+#%%
 import uproot
 import numpy as np
 import matplotlib.pyplot as plt
@@ -21,7 +21,7 @@ E_beam = 10.2         # GeV (assuming beam energy of 10.6 GeV)
 mass_n = .939565      # GeV/c^2 for neutron
 
 # no idea who named these branches/trees
-
+#%%
 # Open the ROOT file and load the tree/data table which can hold different types of data
 file = uproot.open('Pppim_eFD_all.root')
 tree = file['Individual'] # I did not name this tree, I assumed it means data from individual events not binned or summed
@@ -65,92 +65,188 @@ e_chi2pid = tree['chi2pid_e'].array()
 p1_chi2pid = tree['chi2pid_p1'].array()
 p2_chi2pid = tree['chi2pid_p2'].array()
 pim_chi2pid = tree['chi2pid_pim'].array()
+#%%
+p_beam = vec.obj(px = 0, py = 0, pz = 10.2, E = 10.2)
+p_target = vec.obj(px = 0, py = 0, pz = 0, M = 0.938272088)
 
-
-# creating four vectors of inital conditions (beam and target)
-# how do I know if my beam is well defined?
-# not neglecting mass of electron
-p_e_beam = np.array([E_beam, 0, 0, np.sqrt(E_beam**2 - mass_e**2)])
-p_target = np.array([mass_p, 0, 0, 0])
-
-
-# creating four vectors for final conditions (p1, p2, e scattered, pim)
-p_e_scatter = np.column_stack([np.sqrt(mass_e**2 + e_mag**2), px_e, py_e, pz_e])
-p_p1 = np.column_stack([np.sqrt(mass_p**2 + p1_mag**2), px_p1, py_p1, pz_p1])
-p_p2 = np.column_stack([np.sqrt(mass_p**2 + p2_mag**2), px_p2, py_p2, pz_p2])
-p_pim = np.column_stack([np.sqrt(mass_pim**2 + pim_mag**2), px_pim, py_pim, pz_pim])
+p_e = vec.array({'px': px_e, "py": py_e, "pz": pz_e, "M": np.ones_like(px_e) * mass_e})
+p_p1 = vec.array({'px': px_p1, "py": py_p1, "pz": pz_p1, "M": np.ones_like(px_p1) * mass_p})
+p_p2 = vec.array({'px': px_p2, "py": py_p2, "pz": pz_p2, "M": np.ones_like(px_p2) * mass_p})
+p_pim = vec.array({'px': px_pim, "py": py_pim, "pz": pz_pim, "M": np.ones_like(px_pim) * mass_pim})
 
 
 #%% missing mass method
 
-"""Cut on MM to only keep events where the 
-missing particle looks like an neutron"""
-
 N = len(px_e)
 
-# P_missing = P_initial - sum of P_observed
-p_initial_event = p_e_beam + p_target         #this has shape (4,)
-p_initial = np.tile(p_initial_event, (N, 1))  #this has shape (N, 4)
-p_observed = p_e_scatter + p_p1 + p_p2 + p_pim
-p_mm = p_initial - p_observed
 
-E_mm  = p_mm[:, 0]
-px_mm = p_mm[:, 1]
-py_mm = p_mm[:, 2]
-pz_mm = p_mm[:, 3]
-
-MM2 = E_mm**2 - (px_mm**2 + py_mm**2 + pz_mm**2)
-MM2 = np.where(MM2 > 0, MM2, 0) # preventing small negatives
-MM = np.sqrt(MM2)
+# MM2 = E_mm**2 - (px_mm**2 + py_mm**2 + pz_mm**2)
+MM_vec = p_beam + p_target - p_e - p_p1 - p_p2 - p_pim
 plt.figure()
-plt.hist(MM, bins=200, range=(0.01, 2.5), histtype='step', color='k')
+plt.hist(np.array(MM_vec.M), bins=200, range=(0.01, 2.5), histtype='step', color='k')
 plt.axvline(mass_n, linestyle='--', label=f'Antineutron {mass_n}GeV' )
-plt.xlabel('Missing Mass (GeV)')
+plt.xlabel('Missing Mass(GeV)')
 plt.ylabel('Counts')
-plt.title('Missing Mass (no cuts)')
+plt.title('Missing Mass Distribution (no cuts)')
 plt.tight_layout()
 plt.savefig('MM_no_cuts.pdf')
 plt.show()
 
 
+
+
 #%% invariant mass of final hadronic system (W)
-#(when you don't see/detect all final state particles)
 
-""""Cut on W to only keep events where the whole hadronic system 
-is in the kinematic window I want"""
-
-p_W = p_initial - p_e_scatter
-
-E_W  = p_W[:, 0]
-px_W = p_W[:, 1]
-py_W = p_W[:, 2]
-pz_W = p_W[:, 3]
-
-
-W2 = E_W**2 - (px_W**2 + py_W**2 + pz_W**2)
-W = np.sqrt(W2)
+p_W = p_beam + p_target - p_e
 
 plt.figure()
-plt.hist(W, bins=100, range=(0.01, 2.5), histtype='step', color='k')
-plt.xlabel('Hadronic Invariant Mass (no cuts)')
+plt.hist(p_W.M, bins=100, range = (0, 5), histtype='step', color='k')
+plt.axvline(2*mass_p + mass_pim + mass_n, color = 'red')
+plt.xlabel('W (no cuts)')
 plt.ylabel('Counts')
-plt.title('Hadronic Invariant Mass (no cuts)')
+plt.title('Hadronic Invariant Mass Distribution(no cuts)')
 plt.tight_layout()
 plt.savefig('W_no_cuts_ZOOM_OUT.pdf')
 plt.show()
 
+
+
+
+
+# %% This is a CUT!!! 
+# Data is like a window and a cut is like a window cover
+
+# cut_W = p_W.M > (2*mass_p + mass_pim + mass_n)
+cut_W = p_W.M > 3.3
+
 plt.figure()
-plt.hist(W, bins=80, range=(0.7, 1.2), histtype='step', color='k')
-plt.xlabel('Hadronic Invariant Mass (no cuts) (GeV)')
-plt.ylabel('Counts')
-plt.title('Hadronic Invariant Mass (no cuts)')
+plt.hist2d(np.array(p_W.M), np.array(MM_vec.M), bins = 100, range = ((0, 5), (0, 2.5)), norm = 'log')
+plt.xlabel('W Distribution(GeV)')
+plt.ylabel('Missing Mass Distribution(GeV)')
+plt.title('MM vs W')
+plt.grid(True)
 plt.tight_layout()
-plt.savefig('W_no_cuts.pdf')
+plt.savefig('MM_vs_W.pdf')
+plt.show()
+
+# Now with cut
+plt.figure()
+plt.hist2d(np.array(p_W.M[cut_W]), np.array(MM_vec.M[cut_W]), bins = 100, range = ((0, 5), (0, 2.5)), norm = 'log')
+plt.xlabel('W (GeV)')
+plt.ylabel('Missing Mass distribution(GeV)')
+plt.title('MM vs W with threshold cut at 3.3 GeV')
+plt.grid(True)
+plt.tight_layout()
+plt.savefig('MM_vs_W_threshold_cut.pdf')
+plt.show()
+
+
+
+
+# %% Missing Mass plot showing threshold cut
+plt.figure()
+plt.hist(MM_vec.M, bins = 20, range = (0.85, 1.15), histtype = 'step', color = 'black')
+plt.hist(MM_vec.M[~cut_W], bins = 20, range = (0.85, 1.15), color = 'green', alpha = 0.5)
+plt.hist(MM_vec.M[cut_W], bins = 20, range = (0.85, 1.15), color = 'blue', alpha = 0.5)
+plt.xlabel('Missing Mass(GeV)')
+plt.ylabel('Counts')
+plt.title('Missing Mass distribution showing threshold cut')
+plt.tight_layout()
+plt.savefig('MM_threshold_cut.pdf')
 plt.show()
 
 
 
 
 
+# %% These are 2d histograms of MM vs W with a momemtum magnitude cut and threshold cut with reguards to different particles
+plt.figure()
+plt.hist2d(np.array(p_p1.mag[cut_W]), np.array(MM_vec.M[cut_W]), bins = 100, range = ((0, 7), (0, 2.5)), norm = 'log')
+plt.xlabel('Proton 1 magnitude with threshold cut')
+plt.ylabel('MM with threshold cut')
+plt.title('proton 1 momemtum magnitude vs W (with threshold cut)')
+plt.savefig('p1_mom_mag_threshold.pdf')
+plt.show()
+
+plt.figure()
+plt.hist2d(np.array(p_p2.mag[cut_W]), np.array(MM_vec.M[cut_W]), bins = 100, range = ((0, 7), (0, 2.5)), norm = 'log')
+plt.xlabel('Proton 2 magnitude with threshold cut')
+plt.ylabel('MM with threshold cut')
+plt.title('proton 2 momemtum magnitude vs W (with threshold cut)')
+plt.savefig('p2_mom_mag_threshold.pdf')
+plt.show()
+
+plt.figure()
+plt.hist2d(np.array(p_e.mag[cut_W]), np.array(MM_vec.M[cut_W]), bins = 100, range = ((0, 7), (0, 2.5)), norm = 'log')
+plt.xlabel('Scattered electron momentum magnitude with threshold cut')
+plt.ylabel('MM with threshold cut')
+plt.title('Scattered electron momemtum magnitude vs W (with threshold cut)')
+plt.savefig('e_mom_mag_threshold.pdf')
+plt.show()
+
+plt.figure()
+plt.hist2d(np.array(p_pim.mag[cut_W]), np.array(MM_vec.M[cut_W]), bins = 100, range = ((0, 7), (0, 2.5)), norm = 'log')
+plt.xlabel('pi-minus momentum magnitude with threshold cut')
+plt.ylabel('MM with threshold cut')
+plt.title('pi-minus momemtum magnitude vs W (with threshold cut)')
+plt.savefig('pi_mom_mag_threshold.pdf')
+plt.show()
 
 
+
+# %% This is a momentum magnitude cut using all particles
+cut_mag = cut_W & (p_p1.mag > 2.5) & (p_pim.mag < 2) & (p_e.mag > 1) & (p_p2.mag < 2)
+
+plt.figure()
+plt.hist2d(np.array(p_p1.mag[cut_mag]), np.array(MM_vec.M[cut_mag]), bins = 100, range = ((2.5, 7), (0, 2.5)), norm = 'log')
+plt.xlabel('Momemtum magnitude of final state particles')
+plt.ylabel('MM distro')
+plt.title('MM distribution vs Momentum magnitude')
+plt.savefig('2d_histo_all_mom_mag.pdf')
+plt.show()
+
+
+
+#%%This is a histo to visualize combined magnitude cuts the signal we want
+plt.figure()
+plt.hist(MM_vec.M, bins = 20, range = (0.85, 1.15), histtype = 'step', color = 'black')
+plt.hist(MM_vec.M[~cut_mag], bins = 20, range = (0.85, 1.15), color = 'green', alpha = 0.5)
+plt.hist(MM_vec.M[cut_mag], bins = 20, range = (0.85, 1.15), color = 'blue', alpha = 0.5)
+plt.xlabel('MM distribution')
+plt.ylabel('Counts')
+plt.title('MM distribution as a result of momentum magnitude cuts')
+plt.savefig('MM_all_mom_mag_.pdf')
+plt.show()
+
+
+
+# %%Beginning of Chi2pid cut
+plt.figure()
+plt.hist2d(np.array(p1_chi2pid), np.array(MM_vec.M), bins = 100, range = ((-5, 5), (0, 2.5)), norm = 'log')
+plt.show()
+
+
+
+
+# %%
+cut_chi2pid = (np.abs(p1_chi2pid) <= 10) & cut_mag
+
+plt.figure()
+plt.hist(MM_vec.M, bins = 50, range = (0.85, 1.15), histtype = 'step', color = 'black')
+plt.hist(MM_vec.M[~cut_chi2pid], bins = 50, range = (0.85, 1.15), color = 'green', alpha = 0.5)
+plt.hist(MM_vec.M[cut_chi2pid], bins = 50, range = (0.85, 1.15), color = 'blue', alpha = 0.5)
+plt.show()
+
+
+
+#%% cut on lab frame angle distribution of missing mass
+# use vec library to get theta
+
+mass_cut = (MM_vec.M >= 0.85) & (MM_vec.M<=1.15)
+
+p_nbar = vec.array({'px': MM_vec.px[mass_cut], "py": MM_vec.py[mass_cut], "pz": MM_vec.pz[mass_cut], "M": np.ones_like(MM_vec.px[mass_cut]) * mass_n})
+
+
+# %%
+plt.hist(np.rad2deg(p_nbar.theta), bins = 100)
+# %%
