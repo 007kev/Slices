@@ -133,7 +133,7 @@ plt.show()
 # Data is like a window and a cut is like a window cover
 
 # cut_W = p_W.M > (2*mass_p + mass_pim + mass_n)
-cut_W = p_W.M > 3.3
+cut_W = (p_W.M > 3.1) & (p_W.M <= 4.09)
 
 plt.figure()
 plt.hist2d(np.array(p_W.M), np.array(MM_vec.M), bins = 100, range = ((0, 5), (0, 2.5)), norm = 'log')
@@ -154,7 +154,12 @@ plt.figure()
 plt.hist2d(np.array(p_W.M[cut_W]), np.array(MM_vec.M[cut_W]), bins = 100, range = ((0, 5), (0, 2.5)), norm = 'log')
 plt.xlabel('W (GeV)')
 plt.ylabel('Missing Mass distribution(GeV)')
-plt.title('MM vs W with threshold cut at 3.3 GeV')
+plt.title('MM vs W with threshold cut')
+plt.text(
+    0.7, 1.5,
+    'Threshold cut: 3.1 < W < 4.09 GeV',
+    bbox=dict(boxstyle='round', facecolor='white', alpha=1)
+)
 plt.tight_layout()
 plt.savefig('MM_vs_W_threshold_cut.pdf')
 plt.show()
@@ -235,7 +240,14 @@ plt.show()
 
 
 # %% This is a momentum magnitude cut using all particles
-cut_mag = cut_W & (p_p1.mag > 2.5) & (p_pim.mag < 2) & (p_e.mag > 1) & (p_p2.mag < 2)
+
+cut_mag = cut_W & (p_p1.mag > 1.771) & (p_p1.mag < 4.831) & (p_pim.mag > 0.217) & (p_pim.mag < 2.232) & (p_e.mag > 0.911) & (p_e.mag < 3.363) & (p_p2.mag > 0.911) & (p_p2.mag < 2.730)
+# to get these numbers, I went into spyder where the cursor was mapped on the plot,
+# so I hovered over the x value I wanted for each edge if the "antineutron line"
+
+
+# this one will not work because there is no "math operator for it"
+# cut_mag = cut_W & (1.771 < p_p1.mag < 4.831) & (0.217 < p_pim.mag < 2.232) & (0.911 < p_e.mag < 3.363) & (1.771 < p_p2.mag < 4.831) 
 
 plt.figure()
 plt.hist2d(np.array(p_p1.mag[cut_mag]), np.array(MM_vec.M[cut_mag]), bins = 100, range = ((2.5, 7), (0, 2.5)), norm = 'log')
@@ -244,11 +256,11 @@ plt.ylabel('MM distro')
 plt.title('MM distribution vs Momentum magnitude')
 cuts_txt= (
         "Cuts: \n"
-        r"$|P_{p_1}|$ > 2.5GeV" "\n" 
-        r"$|P_{p_2}|$ < 2 GeV" "\n"
-        r"$|P_{\pi^-}|$ < 2 GeV" "\n"
-        r"$|P_{e'}|$ > 1 GeV" "\n"
-        "W cut > 3.3 GeV"
+        r"1.771 < $|P_{p_1}|$ < 4.831GeV" "\n" 
+        r"0.911 < $|P_{p_2}|$ < 2.730 GeV" "\n"
+        r"0.217 < $|P_{\pi^-}|$ < 2.232 GeV" "\n"
+        r"0.911 < $|P_{e'}|$  < 3.363 GeV" "\n"
+        "3.1 < W < 4.09 GeV"
 
 )
 plt.text(
@@ -265,7 +277,7 @@ plt.figure()
 plt.hist(MM_vec.M, bins = 20, range = (0.85, 1.15), histtype = 'step', color = 'black')
 plt.hist(MM_vec.M[~cut_mag], bins = 20, range = (0.85, 1.15), color = 'green', alpha = 0.5)
 plt.hist(MM_vec.M[cut_mag], bins = 20, range = (0.85, 1.15), color = 'blue', alpha = 0.5)
-plt.xlabel('MM distribution')
+plt.xlabel('MM distribution (GeV)')
 plt.ylabel('Counts')
 plt.title('MM distribution as a result of momentum magnitude cuts')
 plt.savefig('MM_all_mom_mag_.pdf')
