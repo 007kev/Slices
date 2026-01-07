@@ -115,8 +115,9 @@ plt.title('Hadronic Invariant Mass Distribution(no cuts)')
 
 
 plt.text(
-    0.05, 0.95e6,
-    'Beam: 10.6 GeV\nTarget: proton',
+    1.5, 0.95e6,
+    r'$2m_p + m_{\pi} + m_n$',
+    color='red',
     bbox=dict(boxstyle='round', facecolor='white', alpha=0.8)
 )
 
@@ -139,7 +140,11 @@ plt.hist2d(np.array(p_W.M), np.array(MM_vec.M), bins = 100, range = ((0, 5), (0,
 plt.xlabel('W Distribution(GeV)')
 plt.ylabel('Missing Mass Distribution(GeV)')
 plt.title('MM vs W')
-plt.grid(True)
+plt.text(
+    3.2, 0.9,
+    '                          ',
+    bbox=dict(boxstyle='round', facecolor='none', alpha=1)        
+)
 plt.tight_layout()
 plt.savefig('MM_vs_W.pdf')
 plt.show()
@@ -150,7 +155,6 @@ plt.hist2d(np.array(p_W.M[cut_W]), np.array(MM_vec.M[cut_W]), bins = 100, range 
 plt.xlabel('W (GeV)')
 plt.ylabel('Missing Mass distribution(GeV)')
 plt.title('MM vs W with threshold cut at 3.3 GeV')
-plt.grid(True)
 plt.tight_layout()
 plt.savefig('MM_vs_W_threshold_cut.pdf')
 plt.show()
@@ -166,6 +170,27 @@ plt.hist(MM_vec.M[cut_W], bins = 20, range = (0.85, 1.15), color = 'blue', alpha
 plt.xlabel('Missing Mass(GeV)')
 plt.ylabel('Counts')
 plt.title('Missing Mass distribution showing threshold cut')
+
+y0=19000
+plt.text(
+    1.025, y0,
+    'Total distribution',
+    color='black',
+    bbox=dict(boxstyle='round', facecolor='white', alpha=1)
+)
+plt.text(
+    1.025, y0-2000,
+    'Background',
+    color='green',
+    bbox=dict(boxstyle='round', facecolor='white', alpha=1)
+)
+plt.text(
+    1.025, y0-4000,
+    'Signal',
+    color='blue',
+    bbox=dict(boxstyle='round', facecolor='white', alpha=1)
+)
+
 plt.tight_layout()
 plt.savefig('MM_threshold_cut.pdf')
 plt.show()
@@ -177,7 +202,7 @@ plt.show()
 # %% These are 2d histograms of MM vs W with a momemtum magnitude cut and threshold cut with reguards to different particles
 plt.figure()
 plt.hist2d(np.array(p_p1.mag[cut_W]), np.array(MM_vec.M[cut_W]), bins = 100, range = ((0, 7), (0, 2.5)), norm = 'log')
-plt.xlabel('Proton 1 magnitude with threshold cut')
+plt.xlabel('Proton 1 magnitude with threshold cut(GeV)')
 plt.ylabel('MM with threshold cut')
 plt.title('proton 1 momemtum magnitude vs W (with threshold cut)')
 plt.savefig('p1_mom_mag_threshold.pdf')
@@ -185,7 +210,7 @@ plt.show()
 
 plt.figure()
 plt.hist2d(np.array(p_p2.mag[cut_W]), np.array(MM_vec.M[cut_W]), bins = 100, range = ((0, 7), (0, 2.5)), norm = 'log')
-plt.xlabel('Proton 2 magnitude with threshold cut')
+plt.xlabel('Proton 2 magnitude with threshold cut(GeV)')
 plt.ylabel('MM with threshold cut')
 plt.title('proton 2 momemtum magnitude vs W (with threshold cut)')
 plt.savefig('p2_mom_mag_threshold.pdf')
@@ -193,17 +218,17 @@ plt.show()
 
 plt.figure()
 plt.hist2d(np.array(p_e.mag[cut_W]), np.array(MM_vec.M[cut_W]), bins = 100, range = ((0, 7), (0, 2.5)), norm = 'log')
-plt.xlabel('Scattered electron momentum magnitude with threshold cut')
+plt.xlabel(r"$e\text{'}$ momentum magnitude with threshold cut(GeV)")
 plt.ylabel('MM with threshold cut')
-plt.title('Scattered electron momemtum magnitude vs W (with threshold cut)')
+plt.title(r"$e\text{'}$ momemtum magnitude vs W (with threshold cut)")
 plt.savefig('e_mom_mag_threshold.pdf')
 plt.show()
 
 plt.figure()
 plt.hist2d(np.array(p_pim.mag[cut_W]), np.array(MM_vec.M[cut_W]), bins = 100, range = ((0, 7), (0, 2.5)), norm = 'log')
-plt.xlabel('pi-minus momentum magnitude with threshold cut')
+plt.xlabel(r"$\pi^-$ momentum magnitude with threshold cut(GeV)")
 plt.ylabel('MM with threshold cut')
-plt.title('pi-minus momemtum magnitude vs W (with threshold cut)')
+plt.title(r"$\pi^-$ momemtum magnitude vs W (with threshold cut)")
 plt.savefig('pi_mom_mag_threshold.pdf')
 plt.show()
 
@@ -214,9 +239,22 @@ cut_mag = cut_W & (p_p1.mag > 2.5) & (p_pim.mag < 2) & (p_e.mag > 1) & (p_p2.mag
 
 plt.figure()
 plt.hist2d(np.array(p_p1.mag[cut_mag]), np.array(MM_vec.M[cut_mag]), bins = 100, range = ((2.5, 7), (0, 2.5)), norm = 'log')
-plt.xlabel('Momemtum magnitude of final state particles')
+plt.xlabel('Momemtum magnitude of (detected) final state particles')
 plt.ylabel('MM distro')
 plt.title('MM distribution vs Momentum magnitude')
+cuts_txt= (
+        "Cuts: \n"
+        r"$|P_{p_1}|$ > 2.5GeV" "\n" 
+        r"$|P_{p_2}|$ < 2 GeV" "\n"
+        r"$|P_{\pi^-}|$ < 2 GeV" "\n"
+        r"$|P_{e'}|$ > 1 GeV" "\n"
+        "W cut > 3.3 GeV"
+
+)
+plt.text(
+    5,1.5,
+    cuts_txt    
+)
 plt.savefig('2d_histo_all_mom_mag.pdf')
 plt.show()
 
