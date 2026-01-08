@@ -97,7 +97,8 @@ p_p2 = vec.array({'px': px_p2, "py": py_p2, "pz": pz_p2, "M": np.ones_like(px_p2
 p_pim = vec.array({'px': px_pim, "py": py_pim, "pz": pz_pim, "M": np.ones_like(px_pim) * mass_pim})
 
 
-#%% missing mass method
+#%% missing mass distribution
+# 
 
 # MM2 = E_mm**2 - (px_mm**2 + py_mm**2 + pz_mm**2)
 MM_vec = p_beam + p_target - p_e - p_p1 - p_p2 - p_pim
@@ -113,9 +114,9 @@ plt.title('Missing Mass Distribution (no cuts)')
 plt.figure()
 params = [4000, mass_n, 0.02, 1, 1, 1, 1, 1]
 bounds = ((0, 0.9, 0, -np.inf, -np.inf, -np.inf, -np.inf, -np.inf), (10000, 1.05, 1, np.inf, np.inf, np.inf, np.inf, np.inf))
-
-bins = np.arange(0.55, 1.45, 0.015)
-bin_content, bin_edges, _ = plt.hist(MM_vec.M, bins = bins, range = (0.55, 1.45))
+bin_num = (1.2-0.8)/60
+bins = np.arange(0.8, 1.2, bin_num)
+bin_content, bin_edges, _ = plt.hist(MM_vec.M, bins = bins, range = (0.8, 1.2))
 
 bin_centers = bin_edges[:-1] + np.diff(bin_edges)/2
 
@@ -135,15 +136,19 @@ fit_params, fit_cov = sp.optimize.curve_fit(
 
 
 x = np.linspace(0.55, 1.45, 10000)
-fit_yield = (np.sqrt(2*np.pi) * fit_params[0] * fit_params[2])/0.015
+fit_yield = (np.sqrt(2*np.pi) * fit_params[0] * fit_params[2])/bin_num
 #plt.close()
 #plt.figure()
 plt.axvline(x=mass_n, color='red', linestyle='--', linewidth=2, label = "Neutron mass: 939.6 MeV")
 A_uncertainty, mu_uncertainty, sigma_uncertainty = np.sqrt(np.diag(fit_cov))[:3]
-yield_uncertainty = np.sqrt(((((np.sqrt(2*np.pi)*fit_params[2])/0.015)*A_uncertainty)**2) + ((((np.sqrt(2*np.pi)*fit_params[0])/0.015)*sigma_uncertainty)**2))
+yield_uncertainty = np.sqrt(((((np.sqrt(2*np.pi)*fit_params[2])/bin_num)*A_uncertainty)**2) + ((((np.sqrt(2*np.pi)*fit_params[0])/0.015)*sigma_uncertainty)**2))
 
 plt.errorbar(bin_centers, bin_content, yerr=np.sqrt(bin_content), fmt = 'none', color = 'black')
 plt.axvline(x = 1, color = 'none', label = f"Events: {len(MM_vec.M)}")
+
+plt.plot(x, gauss_poly4(x, *fit_params), color = 'red', label = "Background + Signal")
+plt.plot(x, poly4(x, *fit_params[3:]), linestyle = '--', label = "Background")
+plt.plot(x, gauss_fit\(x, *fit_params[:3]), color = 'cyan', label = "Signal")
 plt.tight_layout()
 plt.savefig('MM_no_cuts.pdf')
 plt.show()
