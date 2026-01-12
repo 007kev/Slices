@@ -3,13 +3,14 @@
 
 # importing libraries
 #%%
-# %matplotlib qt.  #This make plots in a new window
+# %matplotlib qt
 import uproot
 import numpy as np
 import matplotlib.pyplot as plt
 import vector as vec
 import scipy as sp
 import matplotlib as mpl
+from upkit import Histo, Histo2D, RootAnalysis, Fit, tools
 
 # constants
 mass_p = 0.938272088  # GeV/c^2 for proton
@@ -98,60 +99,121 @@ p_pim = vec.array({'px': px_pim, "py": py_pim, "pz": pz_pim, "M": np.ones_like(p
 
 
 #%% missing mass distribution
-# 
 
 # MM2 = E_mm**2 - (px_mm**2 + py_mm**2 + pz_mm**2)
 MM_vec = p_beam + p_target - p_e - p_p1 - p_p2 - p_pim
+
 plt.figure()
 plt.hist(np.array(MM_vec.M), bins=200, range=(0.01, 2.5), histtype='step', color='black')
 plt.axvline(mass_n, linestyle='--', label=f'Antineutron {mass_n}GeV' )
 plt.legend()
-plt.xlabel('Missing Mass(GeV)')
+plt.xlabel(r'$\bar{n}$ Missing Mass(GeV)')
 plt.ylabel('Counts')
-plt.title('Missing Mass Distribution (no cuts)')
-
-
-plt.figure()
-params = [4000, mass_n, 0.02, 1, 1, 1, 1, 1]
-bounds = ((0, 0.9, 0, -np.inf, -np.inf, -np.inf, -np.inf, -np.inf), (10000, 1.05, 1, np.inf, np.inf, np.inf, np.inf, np.inf))
-bin_num = (1.2-0.8)/60
-bins = np.arange(0.8, 1.2, bin_num)
-bin_content, bin_edges, _ = plt.hist(MM_vec.M, bins = bins, range = (0.8, 1.2))
-
-bin_centers = bin_edges[:-1] + np.diff(bin_edges)/2
-
-# fit_params, fit_cov = sp.optimize.curve_fit(gauss_poly4, bin_centers, bin_content, p0 = params, bounds = bounds, sigma =  np.sqrt(bin_content))
-sigma = np.sqrt(bin_content)
-sigma[sigma == 0] = 1.0  # or mask these out
-
-mask = bin_content > 0
-fit_params, fit_cov = sp.optimize.curve_fit(
-    gauss_poly4,
-    bin_centers[mask],
-    bin_content[mask],
-    p0=params,
-    bounds=bounds,
-    sigma=sigma[mask],
-)
-
-
-x = np.linspace(0.55, 1.45, 10000)
-fit_yield = (np.sqrt(2*np.pi) * fit_params[0] * fit_params[2])/bin_num
-#plt.close()
-#plt.figure()
-plt.axvline(x=mass_n, color='red', linestyle='--', linewidth=2, label = "Neutron mass: 939.6 MeV")
-A_uncertainty, mu_uncertainty, sigma_uncertainty = np.sqrt(np.diag(fit_cov))[:3]
-yield_uncertainty = np.sqrt(((((np.sqrt(2*np.pi)*fit_params[2])/bin_num)*A_uncertainty)**2) + ((((np.sqrt(2*np.pi)*fit_params[0])/0.015)*sigma_uncertainty)**2))
-
-plt.errorbar(bin_centers, bin_content, yerr=np.sqrt(bin_content), fmt = 'none', color = 'black')
-plt.axvline(x = 1, color = 'none', label = f"Events: {len(MM_vec.M)}")
-
-plt.plot(x, gauss_poly4(x, *fit_params), color = 'red', label = "Background + Signal")
-plt.plot(x, poly4(x, *fit_params[3:]), linestyle = '--', label = "Background")
-plt.plot(x, gauss_fit\(x, *fit_params[:3]), color = 'cyan', label = "Signal")
+plt.title(r"Missing Mass Distribution for $ep \to e' p' p \pi^-$")
+plt.legend()
 plt.tight_layout()
 plt.savefig('MM_no_cuts.pdf')
-plt.show()
+# plt.show()
+
+
+
+
+
+#------------------------------------------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------------------------------------------
+#%% This part is mainly to practice fitting and not necessary yet
+
+# where did 0.02 come from?
+params = [4000, mass_n, 0.02, 1, 1, 1, 1, 1]
+bounds = ((0, 0.9, 0, -np.inf, -np.inf, -np.inf, -np.inf, -np.inf), (60000, 1.05, 1, np.inf, np.inf, np.inf, np.inf, np.inf))
+bin_num = int((1.2-0.8)/(10e-3)) #  this is the bin width, 10e-3, because the resolution of the detector is 10-15 MeV
+
+# this part fills histogram with MM values
+# bin_content = counts in each bin (y positions)
+# bin_edges = to help compute x positions, length = number of bins + 1
+# _ = no idea why this is needed
+def fit_dist(data, params, bounds, bin_num, fit_range=(0.75, 1.25)):
+    bin_content, bin_edges, _ = plt.hist(data, bins = bin_num, range = fit_range)
+    bin_centers = bin_edges[:-1] + np.diff(bin_edges)/2
+    plt.close()
+    plt.figure()
+
+
+
+    # The FIT!!!
+    # to get best fit parameter values
+    # (function, x, y, parameters, bounds, uncertainty)
+    fit_params, fit_cov = sp.optimize.curve_fit(
+        gauss_poly4, bin_centers, bin_content, p0 = params, bounds = bounds, sigma =  np.sqrt(bin_content))
+
+    # now to compute [[[signal yeild and it's uncertainty]]]!!!!!!!!!!
+
+    # creating grid of x values for smooth fit curves
+    x = np.linspace(fit_range[0], fit_range[1], 10000)
+
+    # area of gaussian (height*width) divided by bin width to convert to number of events in histogram bins
+    # used later
+    fit_yield = (np.sqrt(2*np.pi) * fit_params[0] * fit_params[2])/((fit_range[1] - fit_range[0])/bin_num)
+
+    # annotating graph and then extracting
+    plt.axvline(x=mass_n, color='red', linestyle='--', linewidth=2, label = "Neutron mass: 939.6 MeV")
+
+    A_uncertainty, mu_uncertainty, sigma_uncertainty = np.sqrt(np.diag(fit_cov))[:3]
+
+    what_sigma = 1
+    # remember error propagation equation with partial derivatives
+    yield_uncertainty = what_sigma*np.sqrt( ((((np.sqrt(2*np.pi)*fit_params[2])/10e-3)*A_uncertainty)**2) + 
+                                ((((np.sqrt(2*np.pi)*fit_params[0])/10e-3)*sigma_uncertainty)**2) 
+                                )
+    print(f'relative yeild = {yield_uncertainty/fit_yield}')
+
+    plt.errorbar(bin_centers, bin_content, yerr=np.sqrt(bin_content), fmt = 'none', color = 'black')
+    plt.axvline(x = 1, color = 'none', label = f"Total Events: {len(MM_vec.M):.3e}")
+
+    # statistical significance = a measure of significance of antineutron peak w.r.t. to background
+    # It will be used to judge the usefullness of a cut. Each cut should increase the statistical significance
+    # If a cut decreases siginificance, then that is a bad cut, if it stays the same then we keep it.
+
+    # S / sqrt( S + B )
+    stat_sig = fit_params[0] / ( np.sqrt( fit_params[0] + poly4(fit_params[1], *fit_params[3:]) ) )
+
+    # Error propagation for stat sig 
+    db = np.sqrt(
+        np.sqrt(np.diag(fit_cov))[3]**2 + 
+        (fit_params[1]*np.sqrt(np.diag(fit_cov))[4])**2 + 
+        ((fit_params[1]**2)*np.sqrt(np.diag(fit_cov))[5])**2 + 
+        ((fit_params[1]**3)*np.sqrt(np.diag(fit_cov))[6])**2 + 
+        ((fit_params[1]**4)*np.sqrt(np.diag(fit_cov))[7])**2
+        ) 
+
+    dsig = np.sqrt(
+        (((1/np.sqrt(fit_params[0] + poly4(fit_params[1], *fit_params[3:])) - 
+        (0.5*fit_params[0])/((fit_params[0] + poly4(fit_params[1], *fit_params[3:]))**(3/2)))*A_uncertainty)**2) + 
+        (((0.5*fit_params[0])/((fit_params[0] + poly4(fit_params[1], *fit_params[3:]))**(3/2)))*db)**2)
+
+    plt.axvline(
+        x = 1, color = 'none', 
+        label = f"$A$ = {fit_params[0]:.3g} $\pm$ {A_uncertainty:.0f}\n$\mu$ = {fit_params[1]:.3g} $\pm$ {mu_uncertainty:.1g}\n$\sigma$ = {fit_params[2]:.3g} $\pm$ {sigma_uncertainty:.1g}\nYield = {fit_yield:.3g} $\pm$ {yield_uncertainty:.3g} \n(${what_sigma}\sigma$)")
+
+    # plt.axvline(x = 1, color = 'none', label = f"Statistical\nSignificance = {stat_sig:.3f}")
+                                                                            
+    plt.hist(data, bins = bin_num, range=fit_range)
+    plt.plot(x, gauss_poly4(x, *fit_params), color = 'red', label = "Background + Signal")
+    plt.plot(x, poly4(x, *fit_params[3:]), linestyle = '--', label = "Background")
+    plt.plot(x, gauss(x, *fit_params[:3]), color = 'cyan', label = "Signal")
+    plt.xlabel(r'$\bar{n}$ Missing Mass (GeV)')
+    plt.ylabel('Counts')
+    plt.title('Gaussian + Background Fit to Antineutron MM peak')
+    plt.legend()
+    plt.tight_layout()
+    # plt.show()
+
+fit_dist(MM_vec.M, params, bounds, bin_num, fit_range=(0.75, 1.25))
+plt.savefig('MM_no_cuts_fit.pdf')
+#------------------------------------------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------------------------------------------
+#------------------------------------------------------------------------------------------------------------------------------------------------------
 
 
 #%% invariant mass of final hadronic system (W)
@@ -162,12 +224,12 @@ plt.figure()
 plt.hist(p_W.M, bins=100, range = (0, 5), histtype='step', color='k')
 plt.axvline(2*mass_p + mass_pim + mass_n, color = 'red', label=r'$2m_p + m_{\pi} + m_n$')
 plt.legend()
-plt.xlabel('W (no cuts)')
+plt.xlabel(r"$W_{p' p \pi^- \bar{n}}$")
 plt.ylabel('Counts')
-plt.title('Hadronic Invariant Mass Distribution(no cuts)')
+plt.title('Hadronic Invariant Mass Spectrum')
 plt.tight_layout()
 plt.savefig('W_no_cuts_ZOOM_OUT.pdf')
-plt.show()
+# plt.show()
 
 
 
@@ -190,14 +252,14 @@ plt.text(
 )
 plt.tight_layout()
 plt.savefig('MM_vs_W.pdf')
-plt.show()
+# plt.show()
 
 # Now with cut
 plt.figure()
 plt.hist2d(np.array(p_W.M[cut_W]), np.array(MM_vec.M[cut_W]), bins = 100, range = ((0, 5), (0, 2.5)), norm = 'log')
 plt.xlabel('W (GeV)')
-plt.ylabel('Missing Mass distribution(GeV)')
-plt.title('MM vs W with threshold cut')
+plt.ylabel(r'$\bar{n}$ Missing Mass (GeV)')
+plt.title(r'$\bar{n}_{MM}$ vs $\bar{n}_{W}$ (threshold cut)')
 plt.text(
     1, 1.5,
     'Threshold cut: 3.3 < W',
@@ -210,7 +272,8 @@ plt.text(
 )
 plt.tight_layout()
 plt.savefig('MM_vs_W_threshold_cut.pdf')
-plt.show()
+# plt.show()
+
 
 
 
@@ -226,8 +289,16 @@ plt.ylabel('Counts')
 plt.title('Missing Mass distribution showing threshold cut')
 plt.tight_layout()
 plt.savefig('MM_threshold_cut.pdf')
-plt.show()
+# plt.show()
 
+fit_dist(MM_vec.M, params, bounds, bin_num, fit_range=(0.75, 1.25))
+plt.savefig('MM1.pdf')
+
+fit_dist(MM_vec.M[cut_W], params, bounds, bin_num, fit_range=(0.75, 1.25))
+plt.savefig('MM2.pdf')
+
+fit_dist(MM_vec.M[~cut_W], params, bounds, bin_num, fit_range=(0.75, 1.25))
+plt.savefig('MM3.pdf')
 
 
 
@@ -293,7 +364,6 @@ cuts_txt= (
         r"0.217 GeV < $|P_{\pi^-}|$" "\n"
         r"0.911 GeV < $|P_{e'}|$" "\n"
         "3.3 GeV< W"
-
 )
 plt.text(
     5,1.5,
@@ -346,7 +416,6 @@ plt.title(r'MM with $\chi^2_{PID}$ cut')
 plt.tight_layout()
 plt.savefig('MM_Chi2PID.pdf')
 plt.show()
-
 
 #%% cut on lab frame angle distribution of missing mass
 # use vec library to get theta
