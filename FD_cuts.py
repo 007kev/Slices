@@ -224,11 +224,11 @@ plt.figure()
 plt.hist(p_W.M, bins=100, range = (0, 5), histtype='step', color='k')
 plt.axvline(2*mass_p + mass_pim + mass_n, color = 'red', label=r'$2m_p + m_{\pi} + m_n$')
 plt.legend()
-plt.xlabel(r"$W_{p' p \pi^- \bar{n}}$")
+plt.xlabel(r"$W_{(p' p \pi^- \bar{n})}$ (GeV)")
 plt.ylabel('Counts')
 plt.title('Hadronic Invariant Mass Spectrum')
 plt.tight_layout()
-plt.savefig('W_no_cuts_ZOOM_OUT.pdf')
+plt.savefig('W_no_cuts.pdf')
 # plt.show()
 
 
@@ -242,14 +242,15 @@ cut_W = (p_W.M > 3.3)  # you want a little more room
 plt.figure()
 plt.hist2d(np.array(p_W.M), np.array(MM_vec.M), bins = 100, range = ((0, 5), (0, 2.5)), norm = 'log')
 plt.axvline(3.3, linestyle='--', color='red')
-plt.xlabel('W Distribution(GeV)')
-plt.ylabel('Missing Mass Distribution(GeV)')
-plt.title('MM vs W')
+plt.xlabel(r"$W_{(p' p \pi^- \bar{n})}$ (GeV)")
+plt.ylabel(r'$\bar{n}$ Missing Mass(GeV)')
+plt.title(r'$\bar{n}_{MM}$ vs W Showing Electroproduction Band (no cuts)')
 plt.text(
     3.2, 0.9,
     '                          ',
     bbox=dict(boxstyle='round', facecolor='none', alpha=1)        
 )
+
 plt.tight_layout()
 plt.savefig('MM_vs_W.pdf')
 # plt.show()
@@ -257,12 +258,12 @@ plt.savefig('MM_vs_W.pdf')
 # Now with cut
 plt.figure()
 plt.hist2d(np.array(p_W.M[cut_W]), np.array(MM_vec.M[cut_W]), bins = 100, range = ((0, 5), (0, 2.5)), norm = 'log')
-plt.xlabel('W (GeV)')
+plt.xlabel(r"$W_{(p' p \pi^- \bar{n})}$ (GeV)")
 plt.ylabel(r'$\bar{n}$ Missing Mass (GeV)')
-plt.title(r'$\bar{n}_{MM}$ vs $\bar{n}_{W}$ (threshold cut)')
+plt.title(r'$\bar{n}_{MM}$ vs W Showing Electroproduction Band (Threshold cut)')
 plt.text(
     1, 1.5,
-    'Threshold cut: 3.3 < W',
+    'Threshold cut: 3.3 GeV < W',
     bbox=dict(boxstyle='round', facecolor='white', alpha=1)
 )
 plt.text(
