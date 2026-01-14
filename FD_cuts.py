@@ -127,7 +127,8 @@ plt.savefig('MM_no_cuts.pdf')
 # where did 0.02 come from?
 params = [4000, mass_n, 0.02, 1, 1, 1, 1, 1]
 bounds = ((0, 0.9, 0, -np.inf, -np.inf, -np.inf, -np.inf, -np.inf), (60000, 1.05, 1, np.inf, np.inf, np.inf, np.inf, np.inf))
-bin_num = int((1.2-0.8)/(10e-3)) #  this is the bin width, 10e-3, because the resolution of the detector is 10-15 MeV
+bin_num = int((1.25-0.75)/(10e-3)) # 50 bins
+bin_width = (1.25-0.75)/bin_num #  this is the bin width, 10e-3, because the resolution of the detector is 10-15 MeV
 
 # this part fills histogram with MM values
 # bin_content = counts in each bin (y positions)
@@ -154,29 +155,30 @@ def fit_dist(data, params, bounds, bin_num, fit_range=(0.75, 1.25)):
 
     # area of gaussian (height*width) divided by bin width to convert to number of events in histogram bins
     # used later
-    fit_yield = (np.sqrt(2*np.pi) * fit_params[0] * fit_params[2])/((fit_range[1] - fit_range[0])/bin_num)
+    fit_yield = (np.sqrt(2*np.pi) * fit_params[0] * fit_params[2])/(bin_width)
 
     # annotating graph and then extracting
     plt.axvline(x=mass_n, color='red', linestyle='--', linewidth=2, label = "Neutron mass: 939.6 MeV")
 
     A_uncertainty, mu_uncertainty, sigma_uncertainty = np.sqrt(np.diag(fit_cov))[:3]
 
+    # To show total detected events
+    plt.axvline(x = 1, color = 'none', label = f"Total Events: {len(MM_vec.M):.3e}")
+
     what_sigma = 1
     # remember error propagation equation with partial derivatives
-    yield_uncertainty = what_sigma*np.sqrt( ((((np.sqrt(2*np.pi)*fit_params[2])/10e-3)*A_uncertainty)**2) + 
-                                ((((np.sqrt(2*np.pi)*fit_params[0])/10e-3)*sigma_uncertainty)**2) 
-                                )
-    print(f'relative yeild = {yield_uncertainty/fit_yield}')
+    yield_uncertainty = what_sigma*np.sqrt( 
+        ((((np.sqrt(2*np.pi)*fit_params[2]) / bin_width) *A_uncertainty)**2) + 
+        ((((np.sqrt(2*np.pi)*fit_params[0]) / bin_width) *sigma_uncertainty)**2) 
+                                          )
+    
+    print(f'Relative Uncertainty in Yield = {yield_uncertainty/fit_yield}')
 
     plt.errorbar(bin_centers, bin_content, yerr=np.sqrt(bin_content), fmt = 'none', color = 'black')
-    plt.axvline(x = 1, color = 'none', label = f"Total Events: {len(MM_vec.M):.3e}")
 
     # statistical significance = a measure of significance of antineutron peak w.r.t. to background
     # It will be used to judge the usefullness of a cut. Each cut should increase the statistical significance
     # If a cut decreases siginificance, then that is a bad cut, if it stays the same then we keep it.
-
-    # S / sqrt( S + B )
-    stat_sig = fit_params[0] / ( np.sqrt( fit_params[0] + poly4(fit_params[1], *fit_params[3:]) ) )
 
     # Error propagation for stat sig 
     db = np.sqrt(
@@ -196,14 +198,18 @@ def fit_dist(data, params, bounds, bin_num, fit_range=(0.75, 1.25)):
         x = 1, color = 'none', 
         label = f"$A$ = {fit_params[0]:.3g} $\pm$ {A_uncertainty:.0f}\n$\mu$ = {fit_params[1]:.3g} $\pm$ {mu_uncertainty:.1g}\n$\sigma$ = {fit_params[2]:.3g} $\pm$ {sigma_uncertainty:.1g}\nYield = {fit_yield:.3g} $\pm$ {yield_uncertainty:.3g} \n(${what_sigma}\sigma$)")
 
-    # plt.axvline(x = 1, color = 'none', label = f"Statistical\nSignificance = {stat_sig:.3f}")
-                                                                            
+    # S / sqrt( S + B )
+    stat_sig = fit_params[0] / ( np.sqrt( fit_params[0] + poly4(fit_params[1], *fit_params[3:]) ) )
+    print(f'Statistical Significance = {stat_sig:.4f}')
+    plt.axvline(x = 1, color = 'none', label = f"Statistical\nSignificance = {stat_sig:.3f}")
+
+
     plt.hist(data, bins = bin_num, range=fit_range)
     plt.plot(x, gauss_poly4(x, *fit_params), color = 'red', label = "Background + Signal")
     plt.plot(x, poly4(x, *fit_params[3:]), linestyle = '--', label = "Background")
     plt.plot(x, gauss(x, *fit_params[:3]), color = 'cyan', label = "Signal")
     plt.xlabel(r'$\bar{n}$ Missing Mass (GeV)')
-    plt.ylabel('Counts')
+    plt.ylabel('Counts/10 MeV')
     plt.title('Gaussian + Background Fit to Antineutron MM peak')
     plt.legend()
     plt.tight_layout()
@@ -217,8 +223,9 @@ plt.savefig('MM_no_cuts_fit.pdf')
 
 
 #%% invariant mass of final hadronic system (W)
-
 p_W = p_beam + p_target - p_e
+
+# another way could just be the sum of the final state hadrons (p' + p + pi + n)
 
 plt.figure()
 plt.hist(p_W.M, bins=100, range = (0, 5), histtype='step', color='k')
@@ -263,7 +270,7 @@ plt.ylabel(r'$\bar{n}$ Missing Mass (GeV)')
 plt.title(r'$\bar{n}_{MM}$ vs W Showing Electroproduction Band (Threshold cut)')
 plt.text(
     1, 1.5,
-    'Threshold cut: 3.3 GeV < W',
+    r'Threshold cut: 3.3 GeV < W',
     bbox=dict(boxstyle='round', facecolor='white', alpha=1)
 )
 plt.text(
@@ -280,27 +287,45 @@ plt.savefig('MM_vs_W_threshold_cut.pdf')
 
 
 # %% Missing Mass plot showing threshold cut
+
 plt.figure()
-plt.hist(MM_vec.M, bins = 20, range = (0.85, 1.15), histtype = 'step', color = 'black', label='Total MM')
-plt.hist(MM_vec.M[~cut_W], bins = 20, range = (0.85, 1.15), color = 'green', alpha = 0.5, label='Background')
-plt.hist(MM_vec.M[cut_W], bins = 20, range = (0.85, 1.15), color = 'blue', alpha = 0.5, label='Signal')
+# total (background + signal)
+plt.hist(MM_vec.M, bins = 20, range = (0.85, 1.15), histtype = 'step', color = 'black', label='All events (No cuts)')
+
+# background with cut
+plt.hist(MM_vec.M[~cut_W], bins = 20, range = (0.85, 1.15), color = 'green', alpha = 0.5, label='Below threshold cut (background-like)')
+
+# signal with cut --> [cut_W]
+plt.hist(MM_vec.M[cut_W], bins = 20, range = (0.85, 1.15), color = 'blue', alpha = 0.5, label='Above threshold cut(signal-like))')
+
 plt.legend()
-plt.xlabel('Missing Mass(GeV)')
-plt.ylabel('Counts')
-plt.title('Missing Mass distribution showing threshold cut')
+plt.xlabel(r'$\bar{n}$ Missing Mass(GeV)')
+plt.ylabel('Counts/10 MeV')
+plt.title(r'Effect of $W$ Threshold Cut on Missing-Mass Spectrum')
 plt.tight_layout()
 plt.savefig('MM_threshold_cut.pdf')
 # plt.show()
 
-fit_dist(MM_vec.M, params, bounds, bin_num, fit_range=(0.75, 1.25))
-plt.savefig('MM1.pdf')
+# these are now fitted with fit function (fit_distro) from before
 
+
+# background + signal 
+# plt.figure()
+# fit_dist(MM_vec.M, params, bounds, bin_num, fit_range=(0.75, 1.25))
+# plt.savefig('MM1.pdf')
+# plt.show()
+
+# signal
+plt.figure()
 fit_dist(MM_vec.M[cut_W], params, bounds, bin_num, fit_range=(0.75, 1.25))
 plt.savefig('MM2.pdf')
+plt.show()
 
-fit_dist(MM_vec.M[~cut_W], params, bounds, bin_num, fit_range=(0.75, 1.25))
-plt.savefig('MM3.pdf')
-
+# just background
+# plt.figure()
+# fit_dist(MM_vec.M[~cut_W], params, bounds, bin_num, fit_range=(0.75, 1.25))
+# plt.savefig('MM3.pdf')
+# plt.show()
 
 
 
@@ -388,6 +413,10 @@ plt.tight_layout()
 plt.savefig('MM_all_mom_mag_.pdf')
 plt.show()
 
+plt.figure()
+fit_dist(MM_vec.M[cut_mag], params, bounds, bin_num, fit_range=(0.75, 1.25))
+plt.show()
+
 
 
 # %%Beginning of Chi2pid cut
@@ -416,6 +445,10 @@ plt.ylabel('Counts')
 plt.title(r'MM with $\chi^2_{PID}$ cut')
 plt.tight_layout()
 plt.savefig('MM_Chi2PID.pdf')
+plt.show()
+
+plt.figure()
+fit_dist(MM_vec.M[cut_chi2pid], params, bounds, bin_num, fit_range=(0.75, 1.25))
 plt.show()
 
 #%% cut on lab frame angle distribution of missing mass
