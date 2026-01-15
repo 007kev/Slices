@@ -138,15 +138,28 @@ def fit_dist(data, params, bounds, bin_num, fit_range=(0.75, 1.25)):
     bin_content, bin_edges, _ = plt.hist(data, bins = bin_num, range = fit_range)
     bin_centers = bin_edges[:-1] + np.diff(bin_edges)/2
     plt.close()
-    plt.figure()
+    plt.figure(figsize=(9,7))
 
-
+     # mask out empty bins so sigma is finite and nonzero
+    mask = bin_content > 0
+    bin_content_fit = bin_content[mask]
+    bin_centers_fit = bin_centers[mask]
+    sigma_fit = np.sqrt(bin_content_fit)
 
     # The FIT!!!
     # to get best fit parameter values
     # (function, x, y, parameters, bounds, uncertainty)
+    # fit_params, fit_cov = sp.optimize.curve_fit(
+    #     gauss_poly4, bin_centers, bin_content, p0 = params, bounds = bounds, sigma =  np.sqrt(bin_content))
+
     fit_params, fit_cov = sp.optimize.curve_fit(
-        gauss_poly4, bin_centers, bin_content, p0 = params, bounds = bounds, sigma =  np.sqrt(bin_content))
+    gauss_poly4,
+    bin_centers_fit,
+    bin_content_fit,
+    p0=params,
+    bounds=bounds,
+    sigma=sigma_fit,
+    )
 
     # now to compute [[[signal yeild and it's uncertainty]]]!!!!!!!!!!
 
@@ -560,9 +573,12 @@ plt.tight_layout()
 plt.show()
 
 
-#%%
+#%% MM distro with all cuts applied!!!
 plt.figure()
 fit_dist(MM_vec.M[cut_all], params, bounds, bin_num, fit_range=(0.75, 1.25))
+plt.title(r'Fitted MM spectrum After Cuts $(W,|P|,\chi^2_{PID},\Delta t)$')
+plt.tight_layout()
+plt.savefig('MM_all_cuts_fit.pdf')
 plt.show()
 
 
@@ -571,42 +587,8 @@ plt.show()
 # 2) For each bin, select events in that momentum range.
 # 3) Plot (and optionally fit) the 1D MM distribution for that slice.
 
-p_slice = p_p1.mag
-mm = MM_vec.M
-
-# define momemtum bins
-p_bins = np.arange(0, 6, 0.5)
-
-# looping over momemtum slices and making 1d MM histos
-for i in range(len(p_bins) - 1):
-    p_min = p_bins[i]
-    p_max = p_bins[i+1]
-
-    slice_mask = (p_slice >= p_min) & (p_slice < p_max) & cut_all
-    mm_slice = mm[slice_mask]
-
-    # skip very low-stat slices
-    if len(mm_slice) < 30:   # choose a threshold (20–50 is typical)
-        continue
-
-    
-    plt.figure()
-    fit_dist(mm_slice, params, bounds, bin_num, fit_range=(0.75, 1.25))
-    # plt.savefig(f'MM_p1_slice_{p_min:.2f}_{p_max:.2f}.pdf')
-    plt.show()
-
-
-
-# %%
-# Available keys: 'deltaTime_pim', 
-# 'deltaTime_p1', 'deltaTime_p2', 'deltaTime_e', 
-# 'beta_pim', 'beta_p1', 'beta_p2', 'theta_pim', 
-# 'beta_e', 'theta_p1', 'theta_p2', 'status_pim', 
-# 'theta_e', 'pid_pim', 'phi_pim', 'betafromP_pim'...
 
 
 ###Defining momentum mag and delta time for pip
 # wmask = (W > (W_thry + 0.39)) & (data.MM > 0) & (data.MM < 3)
 # p3_pip, dt_pip = np.array(data['P_mag_pip'])[wmask], np.array(data['deltaTime_pip'])[wmask]
-
-# %%
