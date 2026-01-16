@@ -209,7 +209,7 @@ def fit_dist(data, params, bounds, bin_num, fit_range=(0.75, 1.25)):
 
     plt.axvline(
         x = 1, color = 'none', 
-        label = f"$A$ = {fit_params[0]:.3g} $\pm$ {A_uncertainty:.0f}\n$\mu$ = {fit_params[1]:.3g} $\pm$ {mu_uncertainty:.1g}\n$\sigma$ = {fit_params[2]:.3g} $\pm$ {sigma_uncertainty:.1g}\nYield = {fit_yield:.3g} $\pm$ {yield_uncertainty:.3g} (${what_sigma}\sigma$)")
+        label = f"$A$ = {fit_params[0]:.3g} $\pm$ {A_uncertainty:.0f}\n$\mu$ = {fit_params[1]:.3g} $\pm$ {mu_uncertainty:.1g}\n$\sigma$ = {fit_params[2]:.3g} $\pm$ {sigma_uncertainty:.1g}\nYield = {int(fit_yield)} $\pm$ {yield_uncertainty:.3g} (${what_sigma}\sigma$)")
 
     # S / sqrt( S + B )
     stat_sig = fit_params[0] / ( np.sqrt( fit_params[0] + poly4(fit_params[1], *fit_params[3:]) ) )
@@ -575,7 +575,7 @@ plt.show()
 
 #%% MM distro with all cuts applied!!!
 plt.figure()
-fit_dist(MM_vec.M[cut_all], params, bounds, bin_num, fit_range=(0.75, 1.25))
+fit_dist(MM_vec.M[cut_all], params, bounds, bin_num, fit_range=(0.8, 1.1))
 plt.title(r'Fitted MM spectrum After Cuts $(W,|P|,\chi^2_{PID},\Delta t)$')
 plt.tight_layout()
 plt.savefig('MM_all_cuts_fit.pdf')
@@ -592,3 +592,14 @@ plt.show()
 ###Defining momentum mag and delta time for pip
 # wmask = (W > (W_thry + 0.39)) & (data.MM > 0) & (data.MM < 3)
 # p3_pip, dt_pip = np.array(data['P_mag_pip'])[wmask], np.array(data['deltaTime_pip'])[wmask]
+
+
+#%%
+"""
+    This code will check whether there are duplicate entries in the data file
+    and remove all events that are considered duplicates.
+"""
+
+
+def check_duplicate(arr):
+    
