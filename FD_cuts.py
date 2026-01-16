@@ -46,7 +46,7 @@ def expo_poly4(x, A ,B, a, b, c, d, e):
 # no idea who named these branches/trees
 #%%
 # Open the ROOT file and load the tree/data table which can hold different types of data
-file = uproot.open('Pppim_eFD_all.root')
+file = uproot.open('Pppim_eFD_all2.root')
 tree = file['Individual'] # I did not name this tree, I assumed it means data from individual events not binned or summed
 
 # making arrays of momentum information for electron, pi minus, and both protons from called tree
@@ -575,11 +575,12 @@ plt.show()
 
 #%% MM distro with all cuts applied!!!
 plt.figure()
-fit_dist(MM_vec.M[cut_all], params, bounds, bin_num, fit_range=(0.8, 1.1))
+fit_dist(MM_vec.M[cut_all], params, bounds, bin_num, fit_range=(0.75, 1.15))
 plt.title(r'Fitted MM spectrum After Cuts $(W,|P|,\chi^2_{PID},\Delta t)$')
 plt.tight_layout()
 plt.savefig('MM_all_cuts_fit.pdf')
 plt.show()
+
 
 
 #%%
@@ -595,11 +596,15 @@ plt.show()
 
 
 #%%
-"""
-    This code will check whether there are duplicate entries in the data file
-    and remove all events that are considered duplicates.
-"""
+
+fig, ax = plt.subplots()
+h_MM_cut = Histo(MM_vec.M[cut_all], bins = 25, range = (0.65, 1.25), color ='white', ax =ax)
+h_MM_cut.plot_exp(fmt = '.', color = 'black', ax = ax)
+
+params = [500, mass_n, 0.01, 1, 1, 1, 1, 1]
+bounds = ((0, 0.85, 0, -np.inf, -np.inf, -np.inf, -np.inf, -np.inf), 
+          (1000, 1, 0.1, np.inf, np.inf, np.inf, np.inf, np.inf))
 
 
-def check_duplicate(arr):
-    
+fit_MM_cut = Fit(tools.lorentz_poly4_fit, params, bounds, histo = h_MM_cut, signal = tools.lorentz_fit, background = tools.poly4_fit, bins = 25, range = (0.65, 1.25))
+# %%
