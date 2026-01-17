@@ -217,7 +217,7 @@ def fit_dist(data, params, bounds, bin_num, fit_range=(0.75, 1.25)):
     plt.axvline(x = 1, color = 'none', label = f"Statistical\nSignificance = {stat_sig:.3f}")
 
 
-    plt.hist(data, bins = bin_num, range=fit_range)
+    plt.hist(data, bins = bin_num, range=fit_range, color='orange')
     plt.plot(x, gauss_poly4(x, *fit_params), color = 'red', label = "Background + Signal")
     plt.plot(x, poly4(x, *fit_params[3:]), linestyle = '--', label = "Background")
     plt.plot(x, gauss(x, *fit_params[:3]), color = 'cyan', label = "Signal")
@@ -243,8 +243,9 @@ plt.savefig('FT_MM_no_cuts_fit.pdf')
 # h_M = Histo(MM_vec.M, bins = 100, range = (0.65, 1.25), color = 'white', ax = ax)
 # h_M.plot_exp(fmt = '.', color ='black', ax = ax)
 
-# fit_M = Fit(tools.lorentz_poly4_fit, params, bounds, histo=h_M, signal = tools.lorentz_fit, background=tools.poly4_fit, bins = 100, range = (0.65, 1.25
-                                                                                                                                         ))
+# fit_M = Fit(tools.lorentz_poly4_fit, params, bounds, histo=h_M, signal = tools.lorentz_fit, background=tools.poly4_fit, bins = 100, range = (0.65, 1.25))
+
+
 #%% invariant mass of final hadronic system (W)
 p_W = p_beam + p_target - p_e
 m_hadrons = 2*mass_p + mass_pim + mass_n
@@ -270,13 +271,13 @@ plt.savefig('FT_W_no_cuts.pdf')
 cut_W = (p_W.M > 3.426)  # you want a little more room
 
 plt.figure()
-plt.hist2d(np.array(p_W.M), np.array(MM_vec.M), bins = 100, range = ((0, 5), (0, 2.5)), norm = 'log')
-plt.axvline(3.3, linestyle='--', color='red')
+plt.hist2d(np.array(p_W.M), np.array(MM_vec.M), bins = 1000, range = ((0, 5), (0, 2.5)), norm = 'log')
+plt.axvline(3.426, linestyle='--', color='red')
 plt.xlabel(r"$W_{(p' p \pi^- \bar{n})}$ (GeV)")
 plt.ylabel(r'$\bar{n}$ Missing Mass(GeV)')
 plt.title(r'$\bar{n}_{MM}$ vs W Showing Electroproduction Band (no cuts) (FT)')
 plt.text(
-    3.426, 0.9,
+    3.426, 0.915,
     '                               ',
     bbox=dict(boxstyle='round', facecolor='none', alpha=1)        
 )
@@ -287,7 +288,7 @@ plt.savefig('FT_MM_vs_W.pdf')
 
 # Now with cut
 plt.figure()
-plt.hist2d(np.array(p_W.M[cut_W]), np.array(MM_vec.M[cut_W]), bins = 100, range = ((0, 5), (0, 2.5)), norm = 'log')
+plt.hist2d(np.array(p_W.M[cut_W]), np.array(MM_vec.M[cut_W]), bins = 1000, range = ((0, 5), (0, 2.5)), norm = 'log')
 plt.xlabel(r"$W_{(p' p \pi^- \bar{n})}$ (GeV)")
 plt.ylabel(r'$\bar{n}$ Missing Mass (GeV)')
 plt.title(r'$\bar{n}_{MM}$ vs W Showing Electroproduction Band (Threshold cut) (FT)')
@@ -297,8 +298,8 @@ plt.text(
     bbox=dict(boxstyle='round', facecolor='white', alpha=1)
 )
 plt.text(
-    3.426, 0.9,
-    '                               ',
+    3.426, 0.915,
+    '                          ',
     bbox=dict(boxstyle='round', facecolor='none', alpha=1)        
 )
 plt.tight_layout()
@@ -315,11 +316,13 @@ plt.figure()
 # total (background + signal)
 plt.hist(MM_vec.M, bins = 20, range = (0.85, 1.15), histtype = 'step', color = 'black', label='All events (No cuts)')
 
+# signal with cut --> [cut_W]
+plt.hist(MM_vec.M[cut_W], bins = 20, range = (0.85, 1.15), color = 'orange', alpha = 0.5, label='Above threshold cut(signal-like))')
+
 # background with cut
 plt.hist(MM_vec.M[~cut_W], bins = 20, range = (0.85, 1.15), color = 'green', alpha = 0.5, label='Below threshold cut (background-like)')
 
-# signal with cut --> [cut_W]
-plt.hist(MM_vec.M[cut_W], bins = 20, range = (0.85, 1.15), color = 'blue', alpha = 0.5, label='Above threshold cut(signal-like))')
+
 
 plt.legend()
 plt.xlabel(r'$\bar{n}$ Missing Mass(GeV)')
@@ -356,7 +359,7 @@ plt.show()
 
 # %% These are 2d histograms of MM vs W with a momemtum magnitude cut and threshold cut with regards to different particles
 plt.figure()
-plt.hist2d(np.array(p_p1.mag[cut_W]), np.array(MM_vec.M[cut_W]), bins = 100, range = ((0, 7), (0, 2.5)), norm = 'log')
+plt.hist2d(np.array(p_p1.mag[cut_W]), np.array(MM_vec.M[cut_W]), bins = 1000, range = ((0, 7), (0, 2.5)), norm = 'log', cmap='inferno')
 plt.xlabel(r'$|P_{p1}|$ (GeV)')
 plt.ylabel('MM Distribution (GeV)')
 plt.title(r'MM (with threshold cut) vs $|P_{p1}|$(FT)')
@@ -370,7 +373,7 @@ plt.savefig('FT_p1_mom_mag_threshold.pdf')
 plt.show()
 
 plt.figure()
-plt.hist2d(np.array(p_p2.mag[cut_W]), np.array(MM_vec.M[cut_W]), bins = 100, range = ((0, 7), (0, 2.5)), norm = 'log')
+plt.hist2d(np.array(p_p2.mag[cut_W]), np.array(MM_vec.M[cut_W]), bins = 1000, range = ((0, 7), (0, 2.5)), norm = 'log', cmap='inferno')
 plt.xlabel(r'$|P_{p2}|$ (GeV)')
 plt.ylabel('MM Distribution (GeV)')
 plt.title(r'MM (with threshold cut) vs $|P_{p2}|$ (FT)')
@@ -384,7 +387,7 @@ plt.savefig('FT_p2_mom_mag_threshold.pdf')
 plt.show()
 
 plt.figure()
-plt.hist2d(np.array(p_e.mag[cut_W]), np.array(MM_vec.M[cut_W]), bins = 100, range = ((0, 7), (0, 2.5)), norm = 'log')
+plt.hist2d(np.array(p_e.mag[cut_W]), np.array(MM_vec.M[cut_W]), bins = 1000, range = ((0, 7), (0, 2.5)), norm = 'log', cmap='inferno')
 plt.xlabel(r"$|P_{e'}|$ (GeV)")
 plt.ylabel('MM Distribution (GeV)')
 plt.title(r"MM (with threshold cut) vs $|P_{e'}|$ (FT)")
@@ -399,7 +402,7 @@ plt.savefig('FT_e_mom_mag_threshold.pdf')
 plt.show()
 
 plt.figure()
-plt.hist2d(np.array(p_pim.mag[cut_W]), np.array(MM_vec.M[cut_W]), bins = 100, range = ((0, 7), (0, 2.5)), norm = 'log')
+plt.hist2d(np.array(p_pim.mag[cut_W]), np.array(MM_vec.M[cut_W]), bins = 1000, range = ((0, 7), (0, 2.5)), norm = 'log', cmap='inferno')
 plt.xlabel(r'$|P_{\pi^-}|$ (GeV)')
 plt.ylabel('MM Distribution (GeV)')
 plt.title(r'MM (with threshold cut) vs $|P_{\pi^-}|$(FT)')
@@ -416,7 +419,7 @@ plt.show()
 
 # %% This is a momentum magnitude cut using all particles
 
-cut_mag = cut_W & (p_p1.mag > 1.771) & (p_pim.mag < 2.232) & (p_e.mag > 0.911) & (p_p2.mag < 2.730)
+cut_mag = cut_W & (p_p1.mag > 1.3520) & (p_pim.mag > 0.2531 ) & (p_e.mag > 0.2800) & (p_p2.mag > 0.8133)
 # to get these numbers, I went into spyder where the cursor was mapped on the plot,
 # so I hovered over the x value I wanted for each edge if the "antineutron line"
 
@@ -425,21 +428,21 @@ cut_mag = cut_W & (p_p1.mag > 1.771) & (p_pim.mag < 2.232) & (p_e.mag > 0.911) &
 # cut_mag = cut_W & (1.771 < p_p1.mag < 4.831) & (0.217 < p_pim.mag < 2.232) & (0.911 < p_e.mag < 3.363) & (1.771 < p_p2.mag < 4.831) 
 
 plt.figure()
-plt.hist2d(np.array(p_p1.mag[cut_mag]), np.array(MM_vec.M[cut_mag]), bins = 100, range = ((2.5, 7), (0, 2.5)), norm = 'log')
-plt.xlabel('Momemtum magnitude of (detected) final state particles')
-plt.ylabel('MM distro')
-plt.title('MM distribution vs Momentum magnitude (FT)')
+plt.hist2d(np.array(p_p1.mag[cut_mag]), np.array(MM_vec.M[cut_mag]), bins = 1000, range = ((0, 7), (0, 2.5)), norm = 'log', cmap='inferno')
+plt.xlabel(r"$|P_{p_1, p_2, \pi^-, e'}|$ (GeV)")
+plt.ylabel(r'$\bar{n}$ MM (GeV)')
+plt.title('MM Distribution vs Momentum Magnitude (FT)')
 cuts_txt= (
         "Cuts: \n"
-        r"1.771 GeV < $|P_{p_1}|$" "\n" 
-        r"0.911 GeV < $|P_{p_2}|$" "\n"
-        r"0.217 GeV < $|P_{\pi^-}|$" "\n"
-        r"0.911 GeV < $|P_{e'}|$" "\n"
-        "3.3 GeV< W"
+        r"1.3520 GeV < $|P_{p_1}|$" "\n" 
+        r"0.8133 GeV < $|P_{p_2}|$" "\n"
+        r"0.2531 GeV < $|P_{\pi^-}|$" "\n"
+        r"0.2800 GeV < $|P_{e'}|$" "\n"
+        "3.426 GeV< W"
 )
 
 plt.text(
-    5,1.5,
+    5,1.65,
     cuts_txt    
 )
 
@@ -452,8 +455,8 @@ plt.show()
 #%%This is a histo to visualize combined magnitude cuts the signal we want
 plt.figure()
 plt.hist(MM_vec.M, bins = 20, range = (0.85, 1.15), histtype = 'step', color = 'black', label='All events (No cuts)')
+plt.hist(MM_vec.M[cut_mag], bins = 20, range = (0.85, 1.15), color = 'orange', alpha = 0.5, label='Above cuts cut(signal-like))')
 plt.hist(MM_vec.M[~cut_mag], bins = 20, range = (0.85, 1.15), color = 'green', alpha = 0.5, label='Below cuts (background-like)')
-plt.hist(MM_vec.M[cut_mag], bins = 20, range = (0.85, 1.15), color = 'blue', alpha = 0.5, label='Above cuts cut(signal-like))')
 plt.xlabel('MM distribution (GeV)')
 plt.ylabel('Counts')
 plt.title('MM Distribution as a Result of Momentum Magnitude Cuts (FT)')
@@ -474,7 +477,7 @@ plt.show()
 # %%Beginning of Chi2pid cut
 # Chi2PID = not like chi squared, 
 
-plt.hist2d(np.array(p1_chi2pid), np.array(MM_vec.M), bins = 100, range = ((-5, 5), (0, 2.5)), norm = 'log')
+plt.hist2d(np.array(p1_chi2pid), np.array(MM_vec.M), bins = 1000, range = ((-5, 5), (0, 2.5)), norm = 'log', cmap='inferno')
 plt.xlabel(r"$\chi^2_{PID}$")
 plt.ylabel('Counts')
 plt.title(r"$\chi^2_{PID}$(FT)")
@@ -486,15 +489,17 @@ plt.show()
 
 
 # %% MM plot showing Chi2PID cut
-cut_chi2pid = (np.abs(p1_chi2pid) <= 10) & cut_mag
+cut_chi2pid = (np.abs(p1_chi2pid) <= 2.5) & cut_mag
 
 plt.figure()
-plt.hist(MM_vec.M, bins = 30, range = (0.85, 1.15), histtype = 'step', color = 'black')
-plt.hist(MM_vec.M[~cut_chi2pid], bins = 30, range = (0.85, 1.15), color = 'green', alpha = 0.5)
-plt.hist(MM_vec.M[cut_chi2pid], bins = 30, range = (0.85, 1.15), color = 'blue', alpha = 0.5)
+plt.hist(MM_vec.M, bins = 30, range = (0.85, 1.15), histtype = 'step', color = 'black', label='All events (No cuts)')
+plt.hist(MM_vec.M[cut_chi2pid], bins = 30, range = (0.85, 1.15), color = 'orange', alpha = 0.5, label='Above cuts cut(signal-like))')
+plt.hist(MM_vec.M[~cut_chi2pid], bins = 30, range = (0.85, 1.15), color = 'green', alpha = 0.5, label='Below cuts (background-like)')
+
 plt.xlabel('Missing Mass (GeV)')
 plt.ylabel('Counts')
 plt.title(r'MM with $\chi^2_{PID}$ cut(FT)')
+plt.legend()
 plt.tight_layout()
 plt.savefig('FT_MM_Chi2PID.pdf')
 plt.show()
@@ -538,7 +543,7 @@ for name, p_mag, dt in zip(particles, momenta, dts):
     plt.figure()
     plt.hist2d(np.array(p_mag), np.array(dt),
                bins=(np.arange(0, 6, 0.05), np.arange(-5, 5, 0.05)), 
-               range=((0, 6), (-5, 5)), norm=mpl.colors.LogNorm())
+               range=((0, 6), (-5, 5)), norm=mpl.colors.LogNorm(), cmap='inferno')
     plt.xlabel(rf'$|P_{{{name}}}|$ (GeV)')
     plt.ylabel(rf'$\Delta t_{{{name}}}$ (ns)')
     plt.title(rf'$\Delta t$ vs $|P_{{{name}}}|$(FT)')
@@ -548,10 +553,10 @@ for name, p_mag, dt in zip(particles, momenta, dts):
     plt.show()
 
 dt_windows = {
-    'p1':  (-0.5, 0.75),
-    'p2':  (-0.9, 1.0),
-    'pim': (-0.5, 0.75),
-    'e':   (-0.5, 0.35),
+    'p1':  (-0.279, 0.357),
+    'p2':  (-0.289, 0.5),
+    'pim': (-0.2125, 0.408),
+    'e':   (-0.600, 0.925),
 }
 
 cuts_dt = {}
@@ -569,12 +574,14 @@ cut_all = cut_chi2pid & cut_dt_all
 
 #%%
 plt.figure()
-plt.hist(MM_vec.M, bins = 30, range = (0.85, 1.15), histtype = 'step', color = 'black')
-plt.hist(MM_vec.M[~cut_all], bins = 30, range = (0.85, 1.15), color = 'green', alpha = 0.5)
-plt.hist(MM_vec.M[cut_all], bins = 30, range = (0.85, 1.15), color = 'blue', alpha = 0.5)
+plt.hist(MM_vec.M, bins = 30, range = (0.85, 1.15), histtype = 'step', color = 'black', label='All events (No cuts)')
+plt.hist(MM_vec.M[~cut_all], bins = 30, range = (0.85, 1.15), color = 'green', alpha = 0.5, label='Below cuts (background-like)')
+plt.hist(MM_vec.M[cut_all], bins = 30, range = (0.85, 1.15), color = 'orange', alpha = 0.5, label='Above cuts cut(signal-like))')
+
 plt.xlabel('Missing Mass (GeV)')
 plt.ylabel('Counts')
 plt.title(r'MM with $\Delta$t cuts(FT)')
+plt.legend()
 plt.tight_layout()
 plt.savefig('FT_MM_dt.pdf')
 plt.show()
