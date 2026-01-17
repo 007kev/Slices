@@ -589,7 +589,7 @@ plt.show()
 
 #%% MM distro with all cuts applied!!!
 plt.figure()
-fit_dist(MM_vec.M[cut_all], params, bounds, bin_num, fit_range=(0.75, 1.15))
+fit_dist(MM_vec.M[cut_all], params, bounds, bin_num, fit_range=(0.75, 1.25))
 plt.title(r'Fitted MM spectrum After Cuts $(W,|P|,\chi^2_{PID},\Delta t)$(FT)')
 plt.tight_layout()
 plt.savefig('FT_MM_all_cuts_fit.pdf')

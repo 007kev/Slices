@@ -575,7 +575,7 @@ plt.show()
 
 #%% MM distro with all cuts applied!!!
 plt.figure()
-fit_dist(MM_vec.M[cut_all], params, bounds, bin_num, fit_range=(0.75, 1.15))
+fit_dist(MM_vec.M[cut_all], params, bounds, bin_num, fit_range=(0.75, 1.25))
 plt.title(r'Fitted MM spectrum After Cuts $(W,|P|,\chi^2_{PID},\Delta t)$')
 plt.tight_layout()
 plt.savefig('MM_all_cuts_fit.pdf')
@@ -598,7 +598,7 @@ plt.show()
 #%%
 
 fig, ax = plt.subplots()
-h_MM_cut = Histo(MM_vec.M[cut_all], bins = 25, range = (0.65, 1.25), color ='white', ax =ax)
+h_MM_cut = Histo(MM_vec.M[cut_all], bins = 25, range = (0.75, 1.25), color ='white', ax =ax)
 h_MM_cut.plot_exp(fmt = '.', color = 'black', ax = ax)
 
 params = [500, mass_n, 0.01, 1, 1, 1, 1, 1]
