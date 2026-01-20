@@ -256,6 +256,8 @@ plt.savefig('W_no_cuts.pdf')
 
 
 
+
+
 # %% This is a CUT!!! 
 # Data is like a window and a cut is like a window cover
 
@@ -499,7 +501,7 @@ plt.show()
 #%% cut on lab frame angle distribution of missing mass
 # use vec library to get theta
 mass_cut = (MM_vec.M >= 0.85) & (MM_vec.M<=1.15)
-p_nbar = vec.array({'px': MM_vec.px[mass_cut], "py": MM_vec.py[mass_cut], "pz": MM_vec.pz[mass_cut], "M": np.ones_like(MM_vec.px[mass_cut]) * mass_n})
+p_nbar = vec.array({'px': MM_vec.px, "py": MM_vec.py, "pz": MM_vec.pz, "M": np.ones_like(MM_vec.px) * mass_n})
 
 
 # %% This is a histogram of the antineutron theta angle that is calculated from four vector calculation
@@ -607,4 +609,38 @@ bounds = ((0, 0.85, 0, -np.inf, -np.inf, -np.inf, -np.inf, -np.inf),
 
 
 fit_MM_cut = Fit(tools.lorentz_poly4_fit, params, bounds, histo = h_MM_cut, signal = tools.lorentz_fit, background = tools.poly4_fit, bins = 25, range = (0.65, 1.25))
+# %%
+
+p_p1_cut = p_p1[cut_all]
+p_p2_cut = p_p2[cut_all]
+p_pim_cut = p_pim[cut_all]
+
+p_nbar_cut = p_nbar[cut_all]
+
+#%%
+p_p1pim = p_p1_cut + p_pim_cut
+p_p2pim = p_p2_cut + p_pim_cut
+p_nbarpim = p_nbar_cut + p_pim_cut
+p_p1nbar = p_p1_cut + p_nbar_cut
+p_p2nbar = p_p2_cut + p_nbar_cut
+p_p1p2 = p_p1_cut + p_p2_cut
+
+MM_cut = (MM_vec.M[cut_all] >= 0.85) & (MM_vec.M[cut_all] <= 1.05)
+
+h_p1pim = Histo(p_p1pim.M[MM_cut], bins = 40, range = (1, 2))
+h_p2pim = Histo(p_p2pim.M[MM_cut], bins = 40, range = (1, 2))
+
+h_nbarpim = Histo(p_nbarpim.M[MM_cut], bins = 40, range = (1, 2))
+# %%
+h_p1nbar = Histo(p_p1nbar.M[MM_cut], bins = 40, range = (1.77, 3))
+h_p2nbar = Histo(p_p2nbar.M[MM_cut], bins = 40, range = (1.77, 3))
+h_p1p2 = Histo(p_p1p2.M[MM_cut], bins=40, range = (1.77, 3))
+# %%
+h_sum = h_p1nbar + h_p2nbar
+# %%
+h_sum.plot(bins = 40, range = (1.77, 3))
+# %%
+h_tot = h_sum - h_p1p2
+# %%
+h_tot.plot(bins = 40, range = (1.77, 3))
 # %%
