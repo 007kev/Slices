@@ -19,7 +19,7 @@ mass_pip = 0.13957     # GeV/c^2 for pion
 mass_k = 0.49367     # GeV/c^2 for kaon
 mass_e = 0.000511     # GeV/c^2 for electron
 E_beam = 10.2         # GeV (assuming beam energy of 10.6 GeV)
-mass_n = .939565      # GeV/c^2 for neutron
+mass_n = 0.939565      # GeV/c^2 for neutron
 
 # defining fitting functions to be used throughout this script
 def gauss(x, A, mu, sigma):
@@ -467,29 +467,134 @@ plt.show()
 
 
 # %%Beginning of Chi2pid cut
-# Chi2PID = not like chi squared, 
+# Chi2PID = not like chi squared, it is a measure of how close the particle in question is to its literature value. 
+# values near 0 mean it looks like the particle in question
 
-plt.hist2d(np.array(p1_chi2pid), np.array(MM_vec.M), bins = 100, range = ((-5, 5), (0, 2.5)), norm = 'log')
-plt.xlabel(r"$\chi^2_{PID}$")
-plt.ylabel('Counts')
-plt.title(r"$\chi^2_{PID}$")
-plt.tight_layout()
-plt.savefig('Chi2PID.pdf')
-plt.show()
+# plt.hist2d(np.array(p1_chi2pid), np.array(MM_vec.M), bins = 100, range = ((-5, 5), (0, 2.5)), norm = 'log')
+# plt.xlabel(r"$\chi^2_{PID}(p1)$")
+# plt.ylabel(r'$\bar{n}_{MM} (GeV)$')
+# plt.title(r'$\bar{n}$ missing mass vs proton-1 PID quality ($\chi^2_{\mathrm{PID}}(p_1)$)')
+# plt.axhline(mass_n, linestyle='--', color='red', alpha=0.1)
+# plt.text(
+#     -1.8, mass_n-0.01,
+#     '                                       ',
+#     bbox=dict(boxstyle='round', facecolor='none', alpha=0.5)
+# )
+# cbar = plt.colorbar()
+# cbar.set_label('Counts per bin')
+# plt.tight_layout()
+# plt.savefig('p1_Chi2PID.pdf')
+# plt.show()
 
+# with a loop for all four detected particles
 
+pids = {
+    "p1": p1_chi2pid,
+    "p2": p2_chi2pid,
+    "pim": pim_chi2pid,
+    "e": e_chi2pid,
+}
 
+pid_labels = {
+    'p1':r'$p_1$',
+    'p2':r'$p_2$',
+    'pim':r'$\pi^-$',
+    'e':r'$e^\prime$',
+}
 
-# %% MM plot showing Chi2PID cut
-cut_chi2pid = (np.abs(p1_chi2pid) <= 10) & cut_mag
+for name, chi2 in pids.items():
+    plt.figure()
+    plt.hist2d(np.array(chi2), np.array(MM_vec.M), bins = 100, range = ((-5, 5), (0, 2.5)), norm = 'log')
+    plt.xlabel(rf"$\chi^2_{{\mathrm{{PID}}}} ({pid_labels[name]})$")
+    plt.ylabel(r'$\bar{n}_{MM} (GeV)$')
+    plt.title(f'Missing Mass vs PID Quality({pid_labels[name]})')
+    cbar = plt.colorbar()
+    cbar.set_label('Counts per bin')
+    plt.tight_layout()
+    plt.savefig(f'{name}_Chi2PID.pdf')
+    plt.show()
+#%%
+chi2_cuts = {
+    'p1':(-3.00, 4),
+    'p2': (-4, 4.000),
+    'pim': (-4.00, 4.00),
+    'e': (-4.00, 4.00) 
+}
+
+cuts_chi = {}
+for name, chi2 in pids.items():
+    lo, hi = chi2_cuts[name]
+    cuts_chi[name] = (chi2 >= lo) & (chi2 <= hi)
+#%% p1 separated MM with chi2pid cut
+
+cut_chi2_p1 = cuts_chi['p1'] & cut_mag  
 
 plt.figure()
+plt.hist(MM_vec.M, bins=30, range=(0.85, 1.15),
+         histtype='step', color='black', label='No PID cut')
+plt.hist(MM_vec.M[~cut_chi2_p1], bins=30, range=(0.85, 1.15),
+         color='green', alpha=0.5, label=r'Fail $\chi^2_{\mathrm{PID}}(p1)$')
+plt.hist(MM_vec.M[cut_chi2_p1], bins=30, range=(0.85, 1.15),
+         color='blue', alpha=0.5, label=r'Pass $\chi^2_{\mathrm{PID}}(p1)$')
+plt.xlabel(r'$\bar{n}$ missing mass (GeV)')
+plt.ylabel('Counts')
+plt.title(r'MM with $\chi^2_{\mathrm{PID}}(p1)$ cut')
+
+#%% p2 separated MM with chi2pid cut
+
+cut_chi2_p2 = cuts_chi['p2'] & cut_mag  
+
+plt.figure()
+plt.hist(MM_vec.M, bins=30, range=(0.85, 1.15),
+         histtype='step', color='black', label='No PID cut')
+plt.hist(MM_vec.M[~cut_chi2_p2], bins=30, range=(0.85, 1.15),
+         color='green', alpha=0.5, label=r'Fail $\chi^2_{\mathrm{PID}}(p2)$')
+plt.hist(MM_vec.M[cut_chi2_p2], bins=30, range=(0.85, 1.15),
+         color='blue', alpha=0.5, label=r'Pass $\chi^2_{\mathrm{PID}}(p2)$')
+plt.xlabel(r'$\bar{n}$ missing mass (GeV)')
+plt.ylabel('Counts')
+plt.title(r'MM with $\chi^2_{\mathrm{PID}}(p2)$ cut')
+
+#%% pim separated MM with chi2pid cut
+
+cut_chi2_pim = cuts_chi['pim'] & cut_mag  
+
+plt.figure()
+plt.hist(MM_vec.M, bins=30, range=(0.85, 1.15),
+         histtype='step', color='black', label='No PID cut')
+plt.hist(MM_vec.M[~cut_chi2_pim], bins=30, range=(0.85, 1.15),
+         color='green', alpha=0.5, label=r'Fail $\chi^2_{\mathrm{PID}}(\pi^-)$')
+plt.hist(MM_vec.M[cut_chi2_pim], bins=30, range=(0.85, 1.15),
+         color='blue', alpha=0.5, label=r'Pass $\chi^2_{\mathrm{PID}}(\pi^-)$')
+plt.xlabel(r'$\bar{n}$ missing mass (GeV)')
+plt.ylabel('Counts')
+plt.title(r'MM with $\chi^2_{\mathrm{PID}}(\pi^-)$ cut')
+
+#%% e separated MM with chi2pid cut
+
+cut_chi2_e = cuts_chi['e'] & cut_mag  
+
+plt.figure()
+plt.hist(MM_vec.M, bins=30, range=(0.85, 1.15),
+         histtype='step', color='black', label='No PID cut')
+plt.hist(MM_vec.M[~cut_chi2_e], bins=30, range=(0.85, 1.15),
+         color='green', alpha=0.5, label=r'Fail $\chi^2_{\mathrm{PID}}(e)$')
+plt.hist(MM_vec.M[cut_chi2_e], bins=30, range=(0.85, 1.15),
+         color='blue', alpha=0.5, label=r'Pass $\chi^2_{\mathrm{PID}}(e)$')
+plt.xlabel(r'$\bar{n}$ missing mass (GeV)')
+plt.ylabel('Counts')
+plt.title(r'MM with $\chi^2_{\mathrm{PID}}(e)$ cut')
+# %% MM plot showing Chi2PID cut
+cut_chi2pid = cuts_chi['p1'] & cuts_chi['p2'] & cuts_chi['pim'] & cuts_chi['e'] & cut_mag
+
+plt.figure()
+
 plt.hist(MM_vec.M, bins = 30, range = (0.85, 1.15), histtype = 'step', color = 'black')
 plt.hist(MM_vec.M[~cut_chi2pid], bins = 30, range = (0.85, 1.15), color = 'green', alpha = 0.5)
 plt.hist(MM_vec.M[cut_chi2pid], bins = 30, range = (0.85, 1.15), color = 'blue', alpha = 0.5)
 plt.xlabel('Missing Mass (GeV)')
 plt.ylabel('Counts')
-plt.title(r'MM with $\chi^2_{PID}$ cut')
+plt.title(r'MM with $\chi^2_{PID}(p_1, p_2, \pi^-, e)$ cut')
 plt.tight_layout()
 plt.savefig('MM_Chi2PID.pdf')
 plt.show()
@@ -543,10 +648,10 @@ for name, p_mag, dt in zip(particles, momenta, dts):
     plt.show()
 
 dt_windows = {
-    'p1':  (-0.5, 0.75),
-    'p2':  (-0.9, 1.0),
-    'pim': (-0.5, 0.75),
-    'e':   (-0.5, 0.35),
+    'p1':  (-2, 2),
+    'p2':  (-2, 2),
+    'pim': (-1.6, 1.25),
+    'e':   (-0.9, 1.35),
 }
 
 cuts_dt = {}
@@ -561,8 +666,65 @@ cut_dt_all = cuts_dt['p1'] & cuts_dt['p2'] & cuts_dt['pim'] & cuts_dt['pim'] & c
 # combinning cuts
 cut_all = cut_chi2pid & cut_dt_all
 
+#%% p1 separated MM with dt cut
+
+cut_dt_p1 = cuts_dt['p1'] & cut_chi2pid
+plt.figure()
+plt.hist(MM_vec.M, bins=30, range=(0.85, 1.15),
+         histtype='step', color='black')
+plt.hist(MM_vec.M[~cut_dt_p1], bins=30, range=(0.85, 1.15),
+         color='green', alpha=0.5)
+plt.hist(MM_vec.M[cut_dt_p1], bins=30, range=(0.85, 1.15),
+         color='blue', alpha=0.5)
+plt.xlabel(r'$\bar{n}$ missing mass (GeV)')
+plt.ylabel('Counts')
+plt.title(r'MM with dt(p_1) cut')
+
+#%% p2 separated MM with dt cut
+
+cut_dt_p2 = cuts_dt['p2'] & cut_chi2pid
+plt.figure()
+plt.hist(MM_vec.M, bins=30, range=(0.85, 1.15),
+         histtype='step', color='black', label='No PID cut')
+plt.hist(MM_vec.M[~cut_dt_p2], bins=30, range=(0.85, 1.15),
+         color='green', alpha=0.5)
+plt.hist(MM_vec.M[cut_dt_p2], bins=30, range=(0.85, 1.15),
+         color='blue', alpha=0.5)
+plt.xlabel(r'$\bar{n}$ missing mass (GeV)')
+plt.ylabel('Counts')
+plt.title(r'MM with dt(p_2)$ cut')
+
+#%% pim separated MM with dt cut
+
+cut_dt_pim = cuts_dt['pim'] & cut_chi2pid
+plt.figure()
+plt.hist(MM_vec.M, bins=30, range=(0.85, 1.15),
+         histtype='step', color='black', label='No PID cut')
+plt.hist(MM_vec.M[~cut_dt_pim], bins=30, range=(0.85, 1.15),
+         color='green', alpha=0.5)
+plt.hist(MM_vec.M[cut_dt_pim], bins=30, range=(0.85, 1.15),
+         color='blue', alpha=0.5)
+plt.xlabel(r'$\bar{n}$ missing mass (GeV)')
+plt.ylabel('Counts')
+plt.title(r'MM with dt($p_{\pi^-}$) cut')
+
+#%% e separated MM with dt cut
+
+cut_dt_pim = cuts_dt['e'] & cut_chi2pid
+plt.figure()
+plt.hist(MM_vec.M, bins=30, range=(0.85, 1.15),
+         histtype='step', color='black', label='No PID cut')
+plt.hist(MM_vec.M[~cut_dt_pim], bins=30, range=(0.85, 1.15),
+         color='green', alpha=0.5)
+plt.hist(MM_vec.M[cut_dt_pim], bins=30, range=(0.85, 1.15),
+         color='blue', alpha=0.5)
+plt.xlabel(r'$\bar{n}$ missing mass (GeV)')
+plt.ylabel('Counts')
+plt.title(r'MM with dt($p_{\pi^-}$) cut')
+
 
 #%%
+
 plt.figure()
 plt.hist(MM_vec.M, bins = 30, range = (0.85, 1.15), histtype = 'step', color = 'black')
 plt.hist(MM_vec.M[~cut_all], bins = 30, range = (0.85, 1.15), color = 'green', alpha = 0.5)
@@ -576,13 +738,13 @@ plt.show()
 
 
 #%% MM distro with all cuts applied!!!
+
 plt.figure()
 fit_dist(MM_vec.M[cut_all], params, bounds, bin_num, fit_range=(0.75, 1.25))
 plt.title(r'Fitted MM spectrum After Cuts $(W,|P|,\chi^2_{PID},\Delta t)$')
 plt.tight_layout()
 plt.savefig('MM_all_cuts_fit.pdf')
 plt.show()
-
 
 
 #%%
@@ -643,4 +805,5 @@ h_sum.plot(bins = 40, range = (1.77, 3))
 h_tot = h_sum - h_p1p2
 # %%
 h_tot.plot(bins = 40, range = (1.77, 3))
-# %%
+#%%
+plt.close('all')

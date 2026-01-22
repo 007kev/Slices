@@ -473,17 +473,104 @@ plt.savefig('FT_all_mom_mag_fit.pdf')
 plt.show()
 
 
-
 # %%Beginning of Chi2pid cut
-# Chi2PID = not like chi squared, 
 
-plt.hist2d(np.array(p1_chi2pid), np.array(MM_vec.M), bins = 1000, range = ((-5, 5), (0, 2.5)), norm = 'log', cmap='inferno')
-plt.xlabel(r"$\chi^2_{PID}$")
+pids = {
+    "p1": p1_chi2pid,
+    "p2": p2_chi2pid,
+    "pim": pim_chi2pid,
+    "e": e_chi2pid,
+}
+
+pid_labels = {
+    'p1':r'$p_1$',
+    'p2':r'$p_2$',
+    'pim':r'$\pi^-$',
+    'e':r'$e^\prime$',
+}
+
+for name, chi2 in pids.items():
+    plt.figure()
+    plt.hist2d(np.array(chi2), np.array(MM_vec.M), bins = 100, range = ((-5, 5), (0, 2.5)), norm = 'log')
+    plt.xlabel(rf"$\chi^2_{{\mathrm{{PID}}}} ({pid_labels[name]})$")
+    plt.ylabel(r'$\bar{n}_{MM} (GeV)$')
+    plt.title(f'Missing Mass vs PID Quality({pid_labels[name]})')
+    cbar = plt.colorbar()
+    cbar.set_label('Counts per bin')
+    plt.tight_layout()
+    plt.savefig(f'{name}_Chi2PID.pdf')
+    plt.show()
+#%%
+chi2_cuts = {
+    'p1':(-4.00, 4),
+    'p2': (-4, 4.000),
+    'pim': (-4.00, 4.00),
+    'e': (-4.00, 4.00) 
+}
+
+cuts_chi = {}
+for name, chi2 in pids.items():
+    lo, hi = chi2_cuts[name]
+    cuts_chi[name] = (chi2 >= lo) & (chi2 <= hi)
+#%% p1 separated MM with chi2pid cut
+
+cut_chi2_p1 = cuts_chi['p1'] & cut_mag  
+
+plt.figure()
+plt.hist(MM_vec.M, bins=30, range=(0.85, 1.15),
+         histtype='step', color='black', label='No PID cut')
+plt.hist(MM_vec.M[~cut_chi2_p1], bins=30, range=(0.85, 1.15),
+         color='green', alpha=0.5, label=r'Fail $\chi^2_{\mathrm{PID}}(p1)$')
+plt.hist(MM_vec.M[cut_chi2_p1], bins=30, range=(0.85, 1.15),
+         color='blue', alpha=0.5, label=r'Pass $\chi^2_{\mathrm{PID}}(p1)$')
+plt.xlabel(r'$\bar{n}$ missing mass (GeV)')
 plt.ylabel('Counts')
-plt.title(r"$\chi^2_{PID}$(FT)")
-plt.tight_layout()
-plt.savefig('FT_Chi2PID.pdf')
-plt.show()
+plt.title(r'MM with $\chi^2_{\mathrm{PID}}(p1)$ cut')
+
+#%% p2 separated MM with chi2pid cut
+
+cut_chi2_p2 = cuts_chi['p2'] & cut_mag  
+
+plt.figure()
+plt.hist(MM_vec.M, bins=30, range=(0.85, 1.15),
+         histtype='step', color='black', label='No PID cut')
+plt.hist(MM_vec.M[~cut_chi2_p2], bins=30, range=(0.85, 1.15),
+         color='green', alpha=0.5, label=r'Fail $\chi^2_{\mathrm{PID}}(p2)$')
+plt.hist(MM_vec.M[cut_chi2_p2], bins=30, range=(0.85, 1.15),
+         color='blue', alpha=0.5, label=r'Pass $\chi^2_{\mathrm{PID}}(p2)$')
+plt.xlabel(r'$\bar{n}$ missing mass (GeV)')
+plt.ylabel('Counts')
+plt.title(r'MM with $\chi^2_{\mathrm{PID}}(p2)$ cut')
+
+#%% pim separated MM with chi2pid cut
+
+cut_chi2_pim = cuts_chi['pim'] & cut_mag  
+
+plt.figure()
+plt.hist(MM_vec.M, bins=30, range=(0.85, 1.15),
+         histtype='step', color='black', label='No PID cut')
+plt.hist(MM_vec.M[~cut_chi2_pim], bins=30, range=(0.85, 1.15),
+         color='green', alpha=0.5, label=r'Fail $\chi^2_{\mathrm{PID}}(\pi^-)$')
+plt.hist(MM_vec.M[cut_chi2_pim], bins=30, range=(0.85, 1.15),
+         color='blue', alpha=0.5, label=r'Pass $\chi^2_{\mathrm{PID}}(\pi^-)$')
+plt.xlabel(r'$\bar{n}$ missing mass (GeV)')
+plt.ylabel('Counts')
+plt.title(r'MM with $\chi^2_{\mathrm{PID}}(\pi^-)$ cut')
+
+#%% e separated MM with chi2pid cut
+
+cut_chi2_e = cuts_chi['e'] & cut_mag  
+
+plt.figure()
+plt.hist(MM_vec.M, bins=30, range=(0.85, 1.15),
+         histtype='step', color='black', label='No PID cut')
+plt.hist(MM_vec.M[~cut_chi2_e], bins=30, range=(0.85, 1.15),
+         color='green', alpha=0.5, label=r'Fail $\chi^2_{\mathrm{PID}}(e)$')
+plt.hist(MM_vec.M[cut_chi2_e], bins=30, range=(0.85, 1.15),
+         color='blue', alpha=0.5, label=r'Pass $\chi^2_{\mathrm{PID}}(e)$')
+plt.xlabel(r'$\bar{n}$ missing mass (GeV)')
+plt.ylabel('Counts')
+plt.title(r'MM with $\chi^2_{\mathrm{PID}}(e)$ cut')
 
 
 
@@ -622,3 +709,4 @@ bounds = ((0, 0.85, 0, -np.inf, -np.inf, -np.inf, -np.inf, -np.inf),
 
 fit_MM_cut = Fit(tools.lorentz_poly4_fit, params, bounds, histo = h_MM_cut, signal = tools.lorentz_fit, background = tools.poly4_fit, bins = 25, range = (0.65, 1.25))
 # %%
+plt.close('all')
