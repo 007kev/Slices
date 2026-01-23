@@ -126,7 +126,7 @@ plt.show()
 
 # where did 0.02 come from?
 params = [4000, mass_n, 0.02, 1, 1, 1, 1, 1]
-bounds = ((0, 0.9, 0, -np.inf, -np.inf, -np.inf, -np.inf, -np.inf), (60000, 1.05, 1, np.inf, np.inf, np.inf, np.inf, np.inf))
+bounds = ((0, 0.9, 0, -np.inf, -np.inf, -np.inf, -np.inf, -np.inf), (100000, 1.05, 1, np.inf, np.inf, np.inf, np.inf, np.inf))
 bin_num = int((1.25-0.75)/(10e-3)) # 50 bins
 bin_width = (1.25-0.75)/bin_num #  this is the bin width, 10e-3, because the resolution of the detector is 10-15 MeV
 
@@ -184,7 +184,7 @@ def fit_dist(data, params, bounds, bin_num, fit_range=(0.75, 1.25)):
         ((((np.sqrt(2*np.pi)*fit_params[2]) / bin_width) *A_uncertainty)**2) + 
         ((((np.sqrt(2*np.pi)*fit_params[0]) / bin_width) *sigma_uncertainty)**2) 
                                           )
-    
+ 
     print(f'Relative Uncertainty in Yield = {yield_uncertainty/fit_yield}')
 
     plt.errorbar(bin_centers, bin_content, yerr=np.sqrt(bin_content), fmt = 'none', color = 'black')
@@ -271,7 +271,7 @@ plt.savefig('FT_W_no_cuts.pdf')
 cut_W = (p_W.M > 3.426)  # you want a little more room
 
 plt.figure()
-plt.hist2d(np.array(p_W.M), np.array(MM_vec.M), bins = 1000, range = ((0, 5), (0, 2.5)), norm = 'log')
+plt.hist2d(np.array(p_W.M), np.array(MM_vec.M), bins = 1000, range = ((0, 5), (0, 2.5)), norm = 'log', cmap='inferno')
 plt.axvline(3.426, linestyle='--', color='red')
 plt.xlabel(r"$W_{(p' p \pi^- \bar{n})}$ (GeV)")
 plt.ylabel(r'$\bar{n}$ Missing Mass(GeV)')
@@ -288,7 +288,7 @@ plt.savefig('FT_MM_vs_W.pdf')
 
 # Now with cut
 plt.figure()
-plt.hist2d(np.array(p_W.M[cut_W]), np.array(MM_vec.M[cut_W]), bins = 1000, range = ((0, 5), (0, 2.5)), norm = 'log')
+plt.hist2d(np.array(p_W.M[cut_W]), np.array(MM_vec.M[cut_W]), bins = 1000, range = ((0, 5), (0, 2.5)), norm = 'log', cmap='inferno')
 plt.xlabel(r"$W_{(p' p \pi^- \bar{n})}$ (GeV)")
 plt.ylabel(r'$\bar{n}$ Missing Mass (GeV)')
 plt.title(r'$\bar{n}_{MM}$ vs W Showing Electroproduction Band (Threshold cut) (FT)')
@@ -307,9 +307,6 @@ plt.savefig('FT_MM_vs_W_threshold_cut.pdf')
 # plt.show()
 
 
-
-
-
 # %% Missing Mass plot showing threshold cut
 
 plt.figure()
@@ -321,7 +318,6 @@ plt.hist(MM_vec.M[cut_W], bins = 20, range = (0.85, 1.15), color = 'orange', alp
 
 # background with cut
 plt.hist(MM_vec.M[~cut_W], bins = 20, range = (0.85, 1.15), color = 'green', alpha = 0.5, label='Below threshold cut (background-like)')
-
 
 
 plt.legend()
@@ -338,7 +334,7 @@ plt.savefig('FT_MM_threshold_cut.pdf')
 # background + signal 
 # plt.figure()
 # fit_dist(MM_vec.M, params, bounds, bin_num, fit_range=(0.75, 1.25))
-# plt.savefig('MM1.pdf')
+# plt.savefig('FT_MM1.pdf')
 # plt.show()
 
 # signal
@@ -354,7 +350,6 @@ plt.show()
 # fit_dist(MM_vec.M[~cut_W], params, bounds, bin_num, fit_range=(0.75, 1.25))
 # plt.savefig('MM3.pdf')
 # plt.show()
-
 
 
 # %% These are 2d histograms of MM vs W with a momemtum magnitude cut and threshold cut with regards to different particles
@@ -473,7 +468,25 @@ plt.savefig('FT_all_mom_mag_fit.pdf')
 plt.show()
 
 
-# %%Beginning of Chi2pid cut
+# %% Beginning of Chi2pid cut
+
+# plt.hist2d(np.array(e_chi2pid), np.array(MM_vec.M), bins = 100, range = ((-0.0005, 0.0005), (0, 2.5)), norm = 'log')
+# plt.xlabel(r"$\chi^2_{PID}(e)$")
+# plt.ylabel(r'$\bar{n}_{MM} (GeV)$')
+# plt.title(r'$\bar{n}$ missing mass vs proton-1 PID quality ($\chi^2_{\mathrm{PID}}(e)$)')
+# # plt.axhline(mass_n, linestyle='--', color='red', alpha=0.1)
+# # plt.text(
+# #     -1.8, mass_n-0.01,
+# #     '                                       ',
+# #     bbox=dict(boxstyle='round', facecolor='none', alpha=0.5)
+# # )
+# cbar = plt.colorbar()
+# cbar.set_label('Counts per bin')
+# plt.tight_layout()
+# plt.savefig('FT_eMM_Chi2PID.pdf')
+# plt.show()
+
+# with a loop for all four detected particles
 
 pids = {
     "p1": p1_chi2pid,
@@ -491,15 +504,16 @@ pid_labels = {
 
 for name, chi2 in pids.items():
     plt.figure()
-    plt.hist2d(np.array(chi2), np.array(MM_vec.M), bins = 100, range = ((-5, 5), (0, 2.5)), norm = 'log')
+    plt.hist2d(np.array(chi2), np.array(MM_vec.M), bins = 100, cmap='inferno',range = ((-5, 5), (0, 2.5)), norm = 'log')
     plt.xlabel(rf"$\chi^2_{{\mathrm{{PID}}}} ({pid_labels[name]})$")
     plt.ylabel(r'$\bar{n}_{MM} (GeV)$')
     plt.title(f'Missing Mass vs PID Quality({pid_labels[name]})')
     cbar = plt.colorbar()
     cbar.set_label('Counts per bin')
     plt.tight_layout()
-    plt.savefig(f'{name}_Chi2PID.pdf')
+    plt.savefig(f'FT_{name}_Chi2PID.pdf')
     plt.show()
+
 #%%
 chi2_cuts = {
     'p1':(-4.00, 4),
@@ -564,14 +578,13 @@ cut_chi2_e = cuts_chi['e'] & cut_mag
 plt.figure()
 plt.hist(MM_vec.M, bins=30, range=(0.85, 1.15),
          histtype='step', color='black', label='No PID cut')
-plt.hist(MM_vec.M[~cut_chi2_e], bins=30, range=(0.85, 1.15),
-         color='green', alpha=0.5, label=r'Fail $\chi^2_{\mathrm{PID}}(e)$')
 plt.hist(MM_vec.M[cut_chi2_e], bins=30, range=(0.85, 1.15),
          color='blue', alpha=0.5, label=r'Pass $\chi^2_{\mathrm{PID}}(e)$')
+plt.hist(MM_vec.M[~cut_chi2_e], bins=30, range=(0.85, 1.15),
+         color='green', alpha=0.5, label=r'Fail $\chi^2_{\mathrm{PID}}(e)$')
 plt.xlabel(r'$\bar{n}$ missing mass (GeV)')
 plt.ylabel('Counts')
 plt.title(r'MM with $\chi^2_{\mathrm{PID}}(e)$ cut')
-
 
 
 
@@ -617,7 +630,7 @@ plt.savefig('FT_theta_anti_N.pdf')
 # plt.xlabel(r"$|P_{p1}|$(GeV)")
 # plt.ylabel(r"$\Delta t_{p1}$ (ns)")
 # plt.title(r'$\Delta t_{p1}$ vs $|P_{p1}|$')
-# plt.savefig('dt_p1.pdf')
+# plt.savefig('FT_dt_p1.pdf')
 # plt.show()
 
 
@@ -658,12 +671,65 @@ cut_dt_all = cuts_dt['p1'] & cuts_dt['p2'] & cuts_dt['pim'] & cuts_dt['pim'] & c
 # combinning cuts
 cut_all = cut_chi2pid & cut_dt_all
 
+#%% p1 separated MM with dt cut
+
+cut_dt_p1 = cuts_dt['p1'] & cut_chi2pid
+plt.figure()
+plt.hist(MM_vec.M, bins=30, range=(0.85, 1.15),
+         histtype='step', color='black')
+plt.hist(MM_vec.M[~cut_dt_p1], bins=30, range=(0.85, 1.15),
+         color='green', alpha=0.5)
+plt.hist(MM_vec.M[cut_dt_p1], bins=30, range=(0.85, 1.15),
+         color='blue', alpha=0.5)
+plt.xlabel(r'$\bar{n}$ missing mass (GeV)')
+plt.ylabel('Counts')
+plt.title(r'MM with dt(p_1) cut')
+
+#%% p2 separated MM with dt cut
+
+cut_dt_p2 = cuts_dt['p2'] & cut_chi2pid
+plt.figure()
+plt.hist(MM_vec.M, bins=30, range=(0.85, 1.15),
+         histtype='step', color='black', label='No PID cut')
+plt.hist(MM_vec.M[~cut_dt_p2], bins=30, range=(0.85, 1.15),
+         color='green', alpha=0.5)
+plt.hist(MM_vec.M[cut_dt_p2], bins=30, range=(0.85, 1.15),
+         color='blue', alpha=0.5)
+plt.xlabel(r'$\bar{n}$ missing mass (GeV)')
+plt.ylabel('Counts')
+plt.title(r'MM with dt(p_2)$ cut')
+
+#%% pim separated MM with dt cut
+
+cut_dt_pim = cuts_dt['pim'] & cut_chi2pid
+plt.figure()
+plt.hist(MM_vec.M, bins=30, range=(0.85, 1.15),
+         histtype='step', color='black', label='No PID cut')
+plt.hist(MM_vec.M[~cut_dt_pim], bins=30, range=(0.85, 1.15),
+         color='green', alpha=0.5)
+plt.hist(MM_vec.M[cut_dt_pim], bins=30, range=(0.85, 1.15),
+         color='blue', alpha=0.5)
+plt.xlabel(r'$\bar{n}$ missing mass (GeV)')
+plt.ylabel('Counts')
+plt.title(r'MM with dt($p_{\pi^-}$) cut')
+
+#%% e separated MM with dt cut
+
+cut_dt_pim = cuts_dt['e'] & cut_chi2pid
+plt.figure()
+plt.hist(MM_vec.M, bins=30, range=(0.85, 1.15), histtype='step', color='black', label='All events (No cuts)')
+plt.hist(MM_vec.M[~cut_dt_pim], bins=30, range=(0.85, 1.15), color='green', alpha=0.5, label='Below cuts (background-like)')
+plt.hist(MM_vec.M[cut_dt_pim], bins=30, range=(0.85, 1.15), color='blue', alpha=0.5, label='Above cuts(signal-like)')
+plt.xlabel(r'$\bar{n}$ missing mass (GeV)')
+plt.ylabel('Counts')
+plt.title(r'MM with dt($p_{\pi^-}$) cut')
+
 
 #%%
 plt.figure()
 plt.hist(MM_vec.M, bins = 30, range = (0.85, 1.15), histtype = 'step', color = 'black', label='All events (No cuts)')
 plt.hist(MM_vec.M[~cut_all], bins = 30, range = (0.85, 1.15), color = 'green', alpha = 0.5, label='Below cuts (background-like)')
-plt.hist(MM_vec.M[cut_all], bins = 30, range = (0.85, 1.15), color = 'orange', alpha = 0.5, label='Above cuts cut(signal-like))')
+plt.hist(MM_vec.M[cut_all], bins = 30, range = (0.85, 1.15), color = 'orange', alpha = 0.5, label='Above cuts (signal-like))')
 
 plt.xlabel('Missing Mass (GeV)')
 plt.ylabel('Counts')
@@ -681,7 +747,6 @@ plt.title(r'Fitted MM spectrum After Cuts $(W,|P|,\chi^2_{PID},\Delta t)$(FT)')
 plt.tight_layout()
 plt.savefig('FT_MM_all_cuts_fit.pdf')
 plt.show()
-
 
 
 #%%
