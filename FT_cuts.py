@@ -624,6 +624,7 @@ plt.tight_layout()
 plt.savefig('FT_theta_anti_N.pdf')
 
 # %% this is the start of a delta time cut
+# This is the difference in value between the measure TOF - the expected TOF
 
 # plt.figure()
 # plt.hist2d(np.array(p_p1.mag), np.array(dt_p1), bins=(np.arange(0, 6, 0.05), np.arange(-5, 5, 0.05)), range=((0,6),(-5,5)), norm = mpl.colors.LogNorm())
@@ -748,6 +749,64 @@ plt.tight_layout()
 plt.savefig('FT_MM_all_cuts_fit.pdf')
 plt.show()
 
+
+
+#%% Lab frame polar angle with all cuts
+
+# first with just a mass cut around the mass of the antineutron
+
+mass_cut = (MM_vec.M >= 0.85) & (MM_vec.M<=1.15)
+p_nbar = vec.array({
+    'px': MM_vec.px[mass_cut], 
+    "py": MM_vec.py[mass_cut], 
+    "pz": MM_vec.pz[mass_cut], 
+    "M": np.ones_like(MM_vec.px[mass_cut]) * mass_n})
+
+# now with all cuts
+
+n_bar_cuts = cut_all & mass_cut
+n_bar_all = vec.array({
+    'px': MM_vec.px[n_bar_cuts],
+    'py': MM_vec.py[n_bar_cuts],
+    'pz': MM_vec.pz[n_bar_cuts],
+    'M': np.ones_like(MM_vec.px[n_bar_cuts])*mass_n
+})
+
+plt.figure()
+plt.hist(np.rad2deg(p_nbar.theta), bins = 100, color='orange', label=r'Mass Cut ($0.85, 1.15$)GeV')
+plt.hist(np.rad2deg(n_bar_all.theta), bins=100, color='green', label=r'All cuts($W,|P|,\chi^2_{PID},\Delta t$, mass cut)')
+plt.xlabel(r'$\theta_{\bar{n}}$ (deg)')
+plt.ylabel('Counts')
+plt.title(r'Lab-frame polar angle of $\bar{n}$ candidate (FD)')
+plt.legend()
+plt.tight_layout()
+plt.savefig('FT_theta_anti_N.pdf')
+plt.show()
+
+# now the azimuthal angle distribution of the antineutron
+plt.figure()
+plt.hist(np.rad2deg(p_nbar.phi), bins = 100, color='orange', label=r'Mass Cut ($0.85, 1.15$)GeV')
+plt.hist(np.rad2deg(n_bar_all.phi), bins=100, color='green', label=r'All cuts($W,|P|,\chi^2_{PID},\Delta t$, mass cut)')
+plt.xlabel(r'$\phi_{\bar{n}}$ (deg)')
+plt.ylabel('Counts')
+plt.title(r'Lab-frame Azimuthal angle of $\bar{n}$ candidate (FT)')
+plt.legend()
+plt.tight_layout()
+plt.savefig('FT_phi_anti_N.pdf')
+plt.show()
+
+# plt.figure()
+# plt.hist2d(np.rad2deg(p_e.theta[cut_all & mass_cut]),
+#            np.rad2deg(n_bar_all.theta),
+#            bins=(50, 50), range=((2, 35), (0, 40)), norm='log')
+# plt.xlabel(r'$\theta_{e^\prime}$ (deg)')
+# plt.ylabel(r'$\theta_{\bar{n}}$ (deg)')
+# plt.title(r'$\theta_{\bar{n}}$ vs $\theta_{e^\prime}$ (all cuts)')
+# cbar = plt.colorbar()
+# cbar.set_label('Counts per bin')
+# plt.tight_layout()
+# # plt.savefig('theta_nbar_vs_theta_e.pdf')
+# plt.show()
 
 #%%
 # 1) Choose momentum bins.

@@ -603,21 +603,6 @@ plt.figure()
 fit_dist(MM_vec.M[cut_chi2pid], params, bounds, bin_num, fit_range=(0.75, 1.25))
 plt.show()
 
-#%% cut on lab frame angle distribution of missing mass
-# use vec library to get theta
-mass_cut = (MM_vec.M >= 0.85) & (MM_vec.M<=1.15)
-p_nbar = vec.array({'px': MM_vec.px, "py": MM_vec.py, "pz": MM_vec.pz, "M": np.ones_like(MM_vec.px) * mass_n})
-
-
-# %% This is a histogram of the antineutron theta angle that is calculated from four vector calculation
-# this calculation is done automatically thanks to the vector library
-plt.hist(np.rad2deg(p_nbar.theta), bins = 100)
-plt.xlabel(r'$\theta_{\bar{n}}$')
-plt.ylabel('Counts')
-plt.title('Lab Frame Angle Distribution of MM')
-plt.tight_layout()
-plt.savefig('theta_anti_N.pdf')
-
 # %% this is the start of a delta time cut
 
 # plt.figure()
@@ -745,6 +730,52 @@ plt.title(r'Fitted MM spectrum After Cuts $(W,|P|,\chi^2_{PID},\Delta t)$')
 plt.tight_layout()
 plt.savefig('MM_all_cuts_fit.pdf')
 plt.show()
+
+
+#%% Lab frame polar angle with all cuts
+
+# first with just a mass cut around the mass of the antineutron
+
+mass_cut = (MM_vec.M >= 0.85) & (MM_vec.M<=1.15)
+p_nbar = vec.array({
+    'px': MM_vec.px[mass_cut], 
+    "py": MM_vec.py[mass_cut], 
+    "pz": MM_vec.pz[mass_cut], 
+    "M": np.ones_like(MM_vec.px[mass_cut]) * mass_n})
+
+# now with all cuts
+
+n_bar_cuts = cut_all & mass_cut
+n_bar_all = vec.array({
+    'px': MM_vec.px[n_bar_cuts],
+    'py': MM_vec.py[n_bar_cuts],
+    'pz': MM_vec.pz[n_bar_cuts],
+    'M': np.ones_like(MM_vec.px[n_bar_cuts])*mass_n
+})
+
+plt.figure()
+plt.hist(np.rad2deg(p_nbar.theta), bins = 100, label=r'Mass Cut ($0.85, 1.15$)GeV')
+plt.hist(np.rad2deg(n_bar_all.theta), bins=100, color='red', label=r'All cuts($W,|P|,\chi^2_{PID},\Delta t$, mass cut)')
+plt.xlabel(r'$\theta_{\bar{n}}$ (deg)')
+plt.ylabel('Counts')
+plt.title(r'Lab-frame polar angle of $\bar{n}$ candidate(FD)')
+plt.legend()
+plt.tight_layout()
+plt.savefig('theta_anti_N.pdf')
+plt.show()
+
+# now the azimuthal angle distribution of the antineutron
+plt.figure()
+plt.hist(np.rad2deg(p_nbar.phi), bins = 100, label=r'Mass Cut ($0.85, 1.15$)GeV')
+plt.hist(np.rad2deg(n_bar_all.phi), bins=100, color='red', label=r'All cuts($W,|P|,\chi^2_{PID},\Delta t$, mass cut)')
+plt.xlabel(r'$\phi_{\bar{n}}$ (deg)')
+plt.ylabel('Counts')
+plt.title(r'Lab-frame Azimuthal angle of $\bar{n}$ candidate (FD)')
+plt.legend()
+plt.tight_layout()
+plt.savefig('phi_anti_N.pdf')
+plt.show()
+
 
 
 #%%
