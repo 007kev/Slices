@@ -753,6 +753,11 @@ n_bar_all = vec.array({
     'M': np.ones_like(MM_vec.px[n_bar_cuts])*mass_n
 })
 
+phi_mass  = np.rad2deg(p_nbar.phi)       # [-180, 180]
+phi_all   = np.rad2deg(n_bar_all.phi)
+
+
+# polar angle here
 plt.figure()
 plt.hist(np.rad2deg(p_nbar.theta), bins = 100, label=r'Mass Cut ($0.85, 1.15$)GeV')
 plt.hist(np.rad2deg(n_bar_all.theta), bins=100, color='red', label=r'All cuts($W,|P|,\chi^2_{PID},\Delta t$, mass cut)')
@@ -764,17 +769,219 @@ plt.tight_layout()
 plt.savefig('theta_anti_N.pdf')
 plt.show()
 
-# now the azimuthal angle distribution of the antineutron
+# Map to [0, 360)
+phi_mass  = (phi_mass + 360) % 360
+phi_all   = (phi_all + 360) % 360
+
+theta_all = np.rad2deg(n_bar_all.theta)
+theta_mass = np.rad2deg(p_nbar.theta)
+
+# Optional: restrict to FD ECAL polar acceptance
+theta_mass = np.rad2deg(p_nbar.theta)
+theta_all  = np.rad2deg(n_bar_all.theta)
+theta_min, theta_max = 5.0, 35.0
+acc_mass = (theta_mass > theta_min) & (theta_mass < theta_max)
+acc_all  = (theta_all  > theta_min) & (theta_all  < theta_max)
+
+phi_mass_acc = phi_mass[acc_mass]
+phi_all_acc  = phi_all[acc_all]
+
+
 plt.figure()
-plt.hist(np.rad2deg(p_nbar.phi), bins = 100, label=r'Mass Cut ($0.85, 1.15$)GeV')
-plt.hist(np.rad2deg(n_bar_all.phi), bins=100, color='red', label=r'All cuts($W,|P|,\chi^2_{PID},\Delta t$, mass cut)')
-plt.xlabel(r'$\phi_{\bar{n}}$ (deg)')
+plt.hist(phi_mass_acc, bins=72, range=(0, 360),
+         histtype='step',
+         label=r'Mass cut, $5^\circ < \theta_{\bar{n}}^{\mathrm{lab}} < 35^\circ$')
+plt.hist(phi_all_acc, bins=72, range=(0, 360),
+         color='red', alpha=0.5,
+         label=r'All cuts in FD ECAL $\theta$ range')
+plt.xlabel(r'$\phi_{\bar{n}}^{\mathrm{lab}}$ (deg)')
 plt.ylabel('Counts')
-plt.title(r'Lab-frame Azimuthal angle of $\bar{n}$ candidate (FD)')
+plt.title(r'Lab-frame azimuthal angle of $\bar{n}$ candidate (FD)')
 plt.legend()
 plt.tight_layout()
-plt.savefig('phi_anti_N.pdf')
+plt.savefig('FD_phi_antiN.pdf')
 plt.show()
+
+plt.figure()
+plt.hist(phi_mass_acc, bins=72, range=(0, 360),
+         histtype='step',
+         label=r'Mass cut, $5^\circ < \theta_{\bar{n}}^{\mathrm{lab}} < 35^\circ$')
+plt.hist(phi_all_acc, bins=72, range=(0, 360),
+         color='red', alpha=0.5,
+         label=r'All cuts in FD ECAL $\theta$ range')
+
+# Sector boundaries every 60°
+for phi_edge in np.arange(0, 360, 60):
+    plt.axvline(phi_edge, color='k', linestyle='--', linewidth=1, alpha=0.6)
+
+# Optional: sector centers at 30°, 90°, ..., 330°
+for phi_center in np.arange(30, 360, 60):
+    plt.axvline(phi_center, color='k', linestyle=':', linewidth=1, alpha=0.4)
+
+plt.xlabel(r'$\phi_{\bar{n}}^{\mathrm{lab}}$ (deg)')
+plt.ylabel('Counts')
+plt.title(r'Lab-frame azimuthal angle of $\bar{n}$ candidate (FD)')
+plt.legend()
+plt.tight_layout()
+plt.savefig('FD_phi_antiN.pdf')
+plt.show()
+
+
+theta_deg = np.rad2deg(n_bar_all.theta)
+phi_deg   = np.rad2deg(n_bar_all.phi)
+phi_deg   = (phi_deg + 360) % 360
+
+plt.figure()
+plt.hist2d(phi_deg, theta_deg,
+           bins=(72, 60),   # 5° in phi, ~0.5° in theta
+           range=((0, 360), (0, 40)))
+plt.xlabel(r'$\phi_{\bar{n}}^{\mathrm{lab}}$ (deg)')
+plt.ylabel(r'$\theta_{\bar{n}}^{\mathrm{lab}}$ (deg)')
+plt.title(r'$ (\theta,\phi)_{\bar{n}}^{\mathrm{lab}}$ after all cuts (FD)')
+cbar = plt.colorbar()
+cbar.set_label('Counts per bin')
+plt.tight_layout()
+# plt.savefig('FD_theta_phi_nbar_2D.pdf')
+plt.show()
+
+#%% Energy spectrum of nbar candidates (FD)
+
+# Energy from the vector library (GeV)
+E_nbar_mass = p_nbar.E          # mass window only
+E_nbar_all  = n_bar_all.E       # mass window + all cuts
+
+plt.figure()
+plt.hist(E_nbar_mass, bins=100, range=(0, 10),
+         histtype='step',
+         label=r'Mass cut ($0.85 < M_{\mathrm{miss}} < 1.15$ GeV)')
+plt.hist(E_nbar_all, bins=100, range=(0, 10),
+         color='red', alpha=0.5,
+         label=r'All cuts ($W,|P|,\chi^2_{\mathrm{PID}},\Delta t$, mass cut)')
+plt.xlabel(r'$E_{\bar{n}}^{\mathrm{lab}}$ (GeV)')
+plt.ylabel('Counts')
+plt.title(r'Lab-frame energy of $\bar{n}$ candidate (FD)')
+plt.legend()
+plt.tight_layout()
+plt.savefig('FD_Enbar_spectrum.pdf')
+plt.show()
+
+#%%
+theta_nbar_all = np.rad2deg(n_bar_all.theta)
+phi_nbar_all   = (np.rad2deg(n_bar_all.phi) + 360) % 360
+E_nbar_all     = n_bar_all.E
+
+# E vs theta
+plt.figure()
+plt.hist2d(theta_nbar_all, E_nbar_all,
+           bins=(60, 60), range=((0, 40), (0, 10)))
+plt.xlabel(r'$\theta_{\bar{n}}^{\mathrm{lab}}$ (deg)')
+plt.ylabel(r'$E_{\bar{n}}^{\mathrm{lab}}$ (GeV)')
+plt.title(r'$E_{\bar{n}}^{\mathrm{lab}}$ vs $\theta_{\bar{n}}^{\mathrm{lab}}$ (FD)')
+cbar = plt.colorbar()
+cbar.set_label('Counts per bin')
+plt.tight_layout()
+plt.savefig('FD_Enbar_vs_theta.pdf')
+plt.show()
+
+# E vs phi (in ECAL theta range, if you want)
+
+
+#%% Energy spectrum of nbar with 5° < theta < 20° (FD)
+
+# Lab polar angle in degrees
+theta_nbar_all = np.rad2deg(n_bar_all.theta)
+
+# Polar-angle cut: 5° < theta < 20°
+theta_min, theta_max = 5.0, 20.0
+theta_cut = (theta_nbar_all > theta_min) & (theta_nbar_all < theta_max)
+
+# Apply only the theta cut; keep all phi
+E_nbar_theta = n_bar_all.E[theta_cut]  # GeV
+
+plt.figure()
+plt.hist(E_nbar_theta, bins=100, range=(0, 10),
+         histtype='stepfilled', alpha=0.6)
+plt.xlabel(r'$E_{\bar{n}}^{\mathrm{lab}}$ (GeV)')
+plt.ylabel('Counts')
+plt.title(r'$E_{\bar{n}}^{\mathrm{lab}}$ for $5^\circ < \theta_{\bar{n}}^{\mathrm{lab}} < 20^\circ$ (FD)')
+plt.tight_layout()
+plt.savefig('FD_Enbar_theta5to20.pdf')
+plt.show()
+
+# ---------------------------
+#%%
+# Using n_bar_all (all analysis cuts + mass cut)
+theta_nbar = np.rad2deg(n_bar_all.theta)
+phi_nbar   = (np.rad2deg(n_bar_all.phi) + 360) % 360
+E_nbar     = n_bar_all.E
+
+# Apply your theta window 5°–20° if you want to stay in that band
+theta_min, theta_max = 5.0, 20.0
+theta_mask = (theta_nbar > theta_min) & (theta_nbar < theta_max)
+
+theta_sel = theta_nbar[theta_mask]
+phi_sel   = phi_nbar[theta_mask]
+E_sel     = E_nbar[theta_mask]
+
+# 2D: E vs theta
+plt.figure()
+plt.hist2d(theta_sel, E_sel,
+           bins=(60, 60),  # adjust as needed
+           range=((0, 40), (0, 10)))
+plt.xlabel(r'$\theta_{\bar{n}}^{\mathrm{lab}}$ (deg)')
+plt.ylabel(r'$E_{\bar{n}}^{\mathrm{lab}}$ (GeV)')
+plt.title(r'$E_{\bar{n}}^{\mathrm{lab}}$ vs $\theta_{\bar{n}}^{\mathrm{lab}}$ (FD)')
+cbar = plt.colorbar()
+cbar.set_label('Counts per bin')
+plt.tight_layout()
+# plt.savefig('FD_Enbar_vs_theta.pdf')
+plt.show()
+
+# 2D: E vs phi (within 5°–20°)
+plt.figure()
+plt.hist2d(phi_sel, E_sel,
+           bins=(72, 60),
+           range=((0, 360), (0, 10)))
+plt.xlabel(r'$\phi_{\bar{n}}^{\mathrm{lab}}$ (deg)')
+plt.ylabel(r'$E_{\bar{n}}^{\mathrm{lab}}$ (GeV)')
+plt.title(r'$E_{\bar{n}}^{\mathrm{lab}}$ vs $\phi_{\bar{n}}^{\mathrm{lab}}$ (FD, $5^\circ<\theta<20^\circ$)')
+cbar = plt.colorbar()
+cbar.set_label('Counts per bin')
+plt.tight_layout()
+# plt.savefig('FD_Enbar_vs_phi.pdf')
+plt.show()
+
+
+#%%
+
+# now the azimuthal angle distribution of the antineutron
+# plt.figure()
+# plt.hist(np.rad2deg(p_nbar.phi), bins = 100, label=r'Mass Cut ($0.85, 1.15$)GeV')
+# plt.hist(np.rad2deg(n_bar_all.phi), bins=100, color='red', label=r'All cuts($W,|P|,\chi^2_{PID},\Delta t$, mass cut)')
+# plt.xlabel(r'$\phi_{\bar{n}}$ (deg)')
+# plt.ylabel('Counts')
+# plt.title(r'Lab-frame Azimuthal angle of $\bar{n}$ candidate (FD)')
+# plt.legend()
+# plt.tight_layout()
+# plt.savefig('phi_anti_N.pdf')
+# plt.show()
+#%%
+phi_p1 = (np.rad2deg(tree['phi_p1'].array()) + 360) % 360  # [0, 360)
+# Apply the same cut_all mask you use for n_bar_all, if compatible
+phi_p1_allcuts = phi_p1[cut_all]
+
+sector_edges = np.arange(0, 361, 60)
+
+plt.figure()
+for i in range(len(sector_edges) - 1):
+    lo, hi = sector_edges[i], sector_edges[i+1]
+    in_slice = (phi_p1_allcuts >= lo) & (phi_p1_allcuts < hi)
+    plt.hist(phi_p1_allcuts[in_slice], bins=12, range=(0, 360),
+             histtype='step', label=f'{lo}°–{hi}°')
+plt.xlabel(r'$\phi_{p_1}$ (deg)')
+plt.ylabel('Counts')
+plt.legend(fontsize=8)
+plt.tight_layout()
 
 
 
