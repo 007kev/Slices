@@ -122,7 +122,7 @@ plt.savefig('MM_no_cuts.pdf')
 #------------------------------------------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------------------------------------------
-#%% This part is mainly to practice fitting and not necessary yet
+#%% This part is mainly to practice fitting but is necessary later!!!
 
 # where did 0.02 come from?
 params = [4000, mass_n, 0.02, 1, 1, 1, 1, 1]
@@ -167,20 +167,19 @@ def fit_dist(data, params, bounds, bin_num, fit_range=(0.75, 1.25)):
     x = np.linspace(fit_range[0], fit_range[1], 10000)
 
     # area of gaussian (height*width) divided by bin width to convert to number of events in histogram bins
-    # used later
     fit_yield = (np.sqrt(2*np.pi) * fit_params[0] * fit_params[2])/(bin_width)
 
     # annotating graph and then extracting
-    plt.axvline(x=mass_n, color='red', linestyle='--', linewidth=2, label = "Neutron mass: 939.6 MeV")
+    plt.axvline(x=mass_n, color='red',alpha=0.2, linestyle='--', linewidth=2, label = "Neutron mass: 939.6 MeV")
 
     A_uncertainty, mu_uncertainty, sigma_uncertainty = np.sqrt(np.diag(fit_cov))[:3]
 
     # To show total detected events
-    plt.axvline(x = 1, color = 'none', label = f"Total Events: {len(MM_vec.M):.3e}")
+    # plt.axvline(x = 1, color = 'none', label = f"Total Events: {len(MM_vec.M):.3e}")
 
-    what_sigma = 1
+    
     # remember error propagation equation with partial derivatives
-    yield_uncertainty = what_sigma*np.sqrt( 
+    yield_uncertainty = np.sqrt( 
         ((((np.sqrt(2*np.pi)*fit_params[2]) / bin_width) *A_uncertainty)**2) + 
         ((((np.sqrt(2*np.pi)*fit_params[0]) / bin_width) *sigma_uncertainty)**2) 
                                           )
@@ -209,28 +208,47 @@ def fit_dist(data, params, bounds, bin_num, fit_range=(0.75, 1.25)):
 
     plt.axvline(
         x = 1, color = 'none', 
-        label = f"$A$ = {fit_params[0]:.3g} $\pm$ {A_uncertainty:.0f}\n$\mu$ = {fit_params[1]:.3g} $\pm$ {mu_uncertainty:.1g}\n$\sigma$ = {fit_params[2]:.3g} $\pm$ {sigma_uncertainty:.1g}\nYield = {int(fit_yield)} $\pm$ {yield_uncertainty:.3g} (${what_sigma}\sigma$)")
+        label = f"$A$ = {fit_params[0]:.3g} $\pm$ {A_uncertainty:.0f}\n$\mu$ = {fit_params[1]:.3g} $\pm$ {mu_uncertainty:.1g}\n$\sigma$ = {fit_params[2]:.3g} $\pm$ {sigma_uncertainty:.1g}\nYield = {int(fit_yield)} $\pm$ {yield_uncertainty:.0f}")
+   
+    # 3σ window
+    what_sigma = 3
+    M_low = fit_params[1] - what_sigma*fit_params[2] # mu - 3sigma
+    M_high = fit_params[1] + what_sigma*fit_params[2] # mu + 3sigma
 
-    # S / sqrt( S + B )
-    stat_sig = fit_params[0] / ( np.sqrt( fit_params[0] + poly4(fit_params[1], *fit_params[3:]) ) )
+    mass_window = (data >= M_low) & (data <= M_high)
+    total_window_counts = np.count_nonzero(mass_window)
+
+    # percent of nbar in total counts of 3sigma window
+    nbar_in_signal = fit_yield*0.9973/total_window_counts
+    print(rf'% purity of nbar = {nbar_in_signal*100:.3g}%')
+    plt.axvline(x=1, color='none', label=rf'Purity of $\bar(n)$ = {nbar_in_signal*100:.3g}%')
+
+    # Signal / sqrt( total counts )
+    S = fit_yield*0.9973 # The guassian Amplitude
+
+    stat_sig = S / ( np.sqrt( total_window_counts) )
     print(f'Statistical Significance = {stat_sig:.4f}')
-    plt.axvline(x = 1, color = 'none', label = f"Statistical\nSignificance = {stat_sig:.3f}")
+    plt.axvline(x = 1, color = 'none', label = rf"Statistical \n Significance = {stat_sig:.3f}(${what_sigma}\sigma$ window)")
 
+    # plotting 3 sigma region for visual
+    plt.axvline(x = M_low, color='green', alpha=0.1, linestyle='--', linewidth=2, label=rf'$\pm$ {what_sigma}$\sigma$')
+    plt.axvline(x = M_high, color='green',alpha=0.1, linestyle='--', linewidth=2)
 
-    plt.hist(data, bins = bin_num, range=fit_range)
+    plt.hist(data, bins = bin_num, range=fit_range, color='white')
     plt.plot(x, gauss_poly4(x, *fit_params), color = 'red', label = "Background + Signal")
     plt.plot(x, poly4(x, *fit_params[3:]), linestyle = '--', label = "Background")
     plt.plot(x, gauss(x, *fit_params[:3]), color = 'cyan', label = "Signal")
 
     # might have to change this annotation later for each fitted MM plot
-    plt.xlabel(r'$\bar{n}$ Missing Mass (GeV)')
+    plt.xlabel(r'Mass [GeV]')
     plt.ylabel('Counts/10 MeV')
     plt.legend()
     plt.tight_layout()
     # plt.show()
+    
 
 fit_dist(MM_vec.M, params, bounds, bin_num, fit_range=(0.75, 1.25))
-plt.title('Gaussian + Background Fit to Antineutron MM peak')
+plt.title('Gaussian + Background Fit to Antineutron MM peak (No Cuts)')
 plt.tight_layout()
 plt.savefig('MM_no_cuts_fit.pdf')
 #------------------------------------------------------------------------------------------------------------------------------------------------------
@@ -253,9 +271,6 @@ plt.title('Hadronic Invariant Mass Spectrum')
 plt.tight_layout()
 plt.savefig('W_no_cuts.pdf')
 # plt.show()
-
-
-
 
 
 # %% This is a CUT!!! 
@@ -726,9 +741,11 @@ plt.show()
 
 plt.figure()
 fit_dist(MM_vec.M[cut_all], params, bounds, bin_num, fit_range=(0.75, 1.25))
-plt.title(r'Fitted MM spectrum After Cuts $(W,|P|,\chi^2_{PID},\Delta t)$')
+# plt.title(r'Fitted MM spectrum After Cuts $(W,|P|,\chi^2_{PID},\Delta t)$')
 plt.tight_layout()
 plt.savefig('MM_all_cuts_fit.pdf')
+plt.title(r'MM with all cuts($W,|P|,\chi^2_{PID},\Delta t$, mass cut)')
+plt.tight_layout()
 plt.show()
 
 
@@ -801,6 +818,8 @@ plt.legend()
 plt.tight_layout()
 plt.savefig('FD_phi_antiN.pdf')
 plt.show()
+
+
 
 plt.figure()
 plt.hist(phi_mass_acc, bins=72, range=(0, 360),
@@ -965,83 +984,8 @@ plt.show()
 # plt.tight_layout()
 # plt.savefig('phi_anti_N.pdf')
 # plt.show()
-#%%
-phi_p1 = (np.rad2deg(tree['phi_p1'].array()) + 360) % 360  # [0, 360)
-# Apply the same cut_all mask you use for n_bar_all, if compatible
-phi_p1_allcuts = phi_p1[cut_all]
-
-sector_edges = np.arange(0, 361, 60)
-
-plt.figure()
-for i in range(len(sector_edges) - 1):
-    lo, hi = sector_edges[i], sector_edges[i+1]
-    in_slice = (phi_p1_allcuts >= lo) & (phi_p1_allcuts < hi)
-    plt.hist(phi_p1_allcuts[in_slice], bins=12, range=(0, 360),
-             histtype='step', label=f'{lo}°–{hi}°')
-plt.xlabel(r'$\phi_{p_1}$ (deg)')
-plt.ylabel('Counts')
-plt.legend(fontsize=8)
-plt.tight_layout()
 
 
 
-#%%
-# 1) Choose momentum bins.
-# 2) For each bin, select events in that momentum range.
-# 3) Plot (and optionally fit) the 1D MM distribution for that slice.
-
-
-
-###Defining momentum mag and delta time for pip
-# wmask = (W > (W_thry + 0.39)) & (data.MM > 0) & (data.MM < 3)
-# p3_pip, dt_pip = np.array(data['P_mag_pip'])[wmask], np.array(data['deltaTime_pip'])[wmask]
-
-
-#%%
-
-fig, ax = plt.subplots()
-h_MM_cut = Histo(MM_vec.M[cut_all], bins = 25, range = (0.75, 1.25), color ='white', ax =ax)
-h_MM_cut.plot_exp(fmt = '.', color = 'black', ax = ax)
-
-params = [500, mass_n, 0.01, 1, 1, 1, 1, 1]
-bounds = ((0, 0.85, 0, -np.inf, -np.inf, -np.inf, -np.inf, -np.inf), 
-          (1000, 1, 0.1, np.inf, np.inf, np.inf, np.inf, np.inf))
-
-
-fit_MM_cut = Fit(tools.lorentz_poly4_fit, params, bounds, histo = h_MM_cut, signal = tools.lorentz_fit, background = tools.poly4_fit, bins = 25, range = (0.65, 1.25))
-# %%
-
-p_p1_cut = p_p1[cut_all]
-p_p2_cut = p_p2[cut_all]
-p_pim_cut = p_pim[cut_all]
-
-p_nbar_cut = p_nbar[cut_all]
-
-#%%
-p_p1pim = p_p1_cut + p_pim_cut
-p_p2pim = p_p2_cut + p_pim_cut
-p_nbarpim = p_nbar_cut + p_pim_cut
-p_p1nbar = p_p1_cut + p_nbar_cut
-p_p2nbar = p_p2_cut + p_nbar_cut
-p_p1p2 = p_p1_cut + p_p2_cut
-
-MM_cut = (MM_vec.M[cut_all] >= 0.85) & (MM_vec.M[cut_all] <= 1.05)
-
-h_p1pim = Histo(p_p1pim.M[MM_cut], bins = 40, range = (1, 2))
-h_p2pim = Histo(p_p2pim.M[MM_cut], bins = 40, range = (1, 2))
-
-h_nbarpim = Histo(p_nbarpim.M[MM_cut], bins = 40, range = (1, 2))
-# %%
-h_p1nbar = Histo(p_p1nbar.M[MM_cut], bins = 40, range = (1.77, 3))
-h_p2nbar = Histo(p_p2nbar.M[MM_cut], bins = 40, range = (1.77, 3))
-h_p1p2 = Histo(p_p1p2.M[MM_cut], bins=40, range = (1.77, 3))
-# %%
-h_sum = h_p1nbar + h_p2nbar
-# %%
-h_sum.plot(bins = 40, range = (1.77, 3))
-# %%
-h_tot = h_sum - h_p1p2
-# %%
-h_tot.plot(bins = 40, range = (1.77, 3))
 #%%
 plt.close('all')
