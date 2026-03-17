@@ -217,13 +217,13 @@ def fit_dist(data, params, bounds, bin_num, fit_range=(0.75, 1.25)):
     plt.axvline(x = 1, color = 'none', label = f"Statistical\nSignificance = {stat_sig:.3f}")
 
 
-    plt.hist(data, bins = bin_num, range=fit_range, color='orange')
+    plt.hist(data, bins = bin_num, range=fit_range, color='white')
     plt.plot(x, gauss_poly4(x, *fit_params), color = 'red', label = "Background + Signal")
     plt.plot(x, poly4(x, *fit_params[3:]), linestyle = '--', label = "Background")
     plt.plot(x, gauss(x, *fit_params[:3]), color = 'cyan', label = "Signal")
 
     # might have to change this annotation later for each fitted MM plot
-    plt.xlabel(r'$\bar{n}$ Missing Mass (GeV)')
+    plt.xlabel(r'Mass [GeV]')
     plt.ylabel('Counts/10 MeV')
     plt.legend()
     plt.tight_layout()
@@ -744,7 +744,7 @@ plt.show()
 #%% MM distro with all cuts applied!!!
 plt.figure()
 fit_dist(MM_vec.M[cut_all], params, bounds, bin_num, fit_range=(0.75, 1.25))
-plt.title(r'Fitted MM spectrum After Cuts $(W,|P|,\chi^2_{PID},\Delta t)$(FT)')
+# plt.title(r'Fitted MM spectrum After Cuts $(W,|P|,\chi^2_{PID},\Delta t)$(FT)')
 plt.tight_layout()
 plt.savefig('FT_MM_all_cuts_fit.pdf')
 plt.show()
