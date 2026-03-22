@@ -47,10 +47,10 @@ theta_max = 30 # adjust after looking at the distribution
 angle_cut = (np.rad2deg(ang) > 0.0) & (np.rad2deg(ang) < theta_max)
 
 sel = mm_window & neutral_ok & angle_cut
-sampling_fraction = 0.12
+sampling_fraction = 0.3 # adjust based on expected neutron detection efficiency
 Enbar_sel = Enbar[sel]/sampling_fraction
 
-print(f"Events after {theta_max} angle cut:", np.count_nonzero(sel))
+print(f"Events after {theta_max} degree cut:", np.count_nonzero(sel))
 
 plt.figure()
 plt.hist(Enbar_sel, bins=60, range=(0.0, 5.0), histtype="step")
@@ -106,7 +106,7 @@ plt.show()
 
 # Define the "Golden" criteria
 # Angle < 10 degrees and Missing Mass within 50 MeV of the neutron mass
-golden_cut = (df['angle_deg'] < 30) & (df['miss_mass'] > 0.889) & (df['miss_mass'] < 0.989)
+golden_cut = (df['angle_deg'] < 25) & (df['miss_mass'] > 0.889) & (df['miss_mass'] < 0.989)
 
 # Create a 'Golden' dataframe
 df_gold = df[golden_cut]
@@ -114,4 +114,50 @@ df_gold = df[golden_cut]
 print(f"Found {len(df_gold)} Antineutrons")
 print("Deposited Energies <30deg (Enbar_calo) in GeV:")
 print(df_gold['Enbar_calo'].values)
-# %%
+
+# 4. Plot the Energy Spectrum of the "Golden" Antineutrons
+sampling_fraction = 0.12
+
+# Calculate the reconstructed kinetic energy for the golden events
+golden_energies = (df_gold['Enbar_calo'] / sampling_fraction)
+
+plt.figure(figsize=(8, 5))
+plt.hist(golden_energies, bins=40, range=(0.0, 5.0), histtype='step', color='darkorange', linewidth=2)
+
+plt.title('Energy Spectrum of Antineutron Candidates\n(Angle < 30°, 0.889 < MM < 0.989 GeV)')
+plt.xlabel('Reconstructed Kinetic Energy (GeV)')
+plt.ylabel('Counts')
+plt.grid(alpha=0.3)
+plt.tight_layout()
+plt.show()
+
+# 5. Find High-Energy Antineutrons (> 2 GeV reconstructed)
+# 2 GeV * 0.12 sampling fraction = 0.24 GeV raw calorimeter energy
+high_energy_cut = df_gold['Enbar_calo'] > 0.24
+df_high_energy = df_gold[high_energy_cut]
+
+print(f"--- High Energy Antineutrons ---")
+print(f"Found {len(df_high_energy)} Antineutrons with E > 2 GeV")
+print("Reconstructed Energies (GeV):")
+print(np.round((df_high_energy['Enbar_calo'] / sampling_fraction).values, 2))
+# %%# %%
+# 6. Sort Antineutron Energies (Highest First)
+sampling_fraction = 1
+
+# Calculate the reconstructed energy for the entire Golden sample
+df_gold['reconstructed_energy'] = df_gold['Enbar_calo'] / sampling_fraction
+
+# Sort the Golden DataFrame by energy in descending order
+df_gold_sorted = df_gold.sort_values(by='reconstructed_energy', ascending=False)
+
+# Extract the sorted energies as a list
+sorted_energies = df_gold_sorted['reconstructed_energy'].tolist()
+
+print(f"--- Sorted Antineutron Energies ---")
+print(f"Total events: {len(sorted_energies)}")
+print(f"Highest 10 energies (GeV):")
+for i, energy in enumerate(sorted_energies[:10], 1):
+    print(f"{i}. {energy:.3f} GeV")
+
+# Optional: Print the full list if needed
+# print(sorted_energies)
