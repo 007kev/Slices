@@ -144,10 +144,6 @@ void hipo_root_pppim()
 
 	float e_status_val = 0;
 
-    // Arrays for non-primary particle coordinates
-    float nonprim_x[100], nonprim_y[100], nonprim_z[100], nonprim_E[100];
-    int   nonprim_count = 0;
-
     TFile *file       = new TFile("kev_Pppim_eFT_006667.root", "RECREATE");
     TTree *tree_indiv = new TTree("Individual", "Individual particle variables");
 
@@ -173,13 +169,6 @@ void hipo_root_pppim()
     tree_indiv->Branch("Enbar_calo",  &Enbar_calo,  "Enbar_calo/F");
 	tree_indiv->Branch("neutral_angle", &neutral_angle, "neutral_angle/F");
     tree_indiv->Branch("has_neutral", &has_neutral, "has_neutral/I");
-
-    // Branches for non-primary particle coordinates
-    tree_indiv->Branch("nonprim_x", nonprim_x, "nonprim_x[nonprim_count]/F");
-    tree_indiv->Branch("nonprim_y", nonprim_y, "nonprim_y[nonprim_count]/F");
-    tree_indiv->Branch("nonprim_z", nonprim_z, "nonprim_z[nonprim_count]/F");
-    tree_indiv->Branch("nonprim_E", nonprim_E, "nonprim_E[nonprim_count]/F");
-    tree_indiv->Branch("nonprim_count", &nonprim_count, "nonprim_count/I");
 
     while (chain.Next()) {
 
@@ -260,10 +249,9 @@ void hipo_root_pppim()
                 // Enbar_calo  = 0.0f;
                 // has_neutral = 0;
 
-				Enbar_calo = -999.0f;
+				Enbar_calo = 0.0f;
 				neutral_angle = -999.0f;
-				has_neutral = -999.0f;
-				nonprim_count = 0;
+				has_neutral = 0;
 
                 TVector3 p_miss = MM.Vect();
                 double   best_angle = 1e9;
@@ -273,7 +261,11 @@ void hipo_root_pppim()
 
                     int   detector = calos.getDetector();  // 7 for ECAL system
                     int   pindex   = calos.getPindex();
-                    int   layer    = calos.getLayer();		
+                    int   layer    = calos.getLayer();
+                    float Ehit     = calos.getEnergy();
+                    float x        = calos.getX();
+                    float y        = calos.getY();
+                    float z        = calos.getZ();			
                     
 					if (detector != 7) continue;
 
@@ -290,30 +282,16 @@ void hipo_root_pppim()
 
 
                     if (!is_primary) {
-                        float Ehit = calos.getEnergy();
-                        float x    = calos.getX();
-                        float y    = calos.getY();
-                        float z    = calos.getZ();
+                        TVector3 r_hit(x, y, z);
+                        double angle = r_hit.Angle(p_miss);
 
-                        // Store non-primary particle coordinates
-                        if (nonprim_count < 10) {
-                            nonprim_x[nonprim_count] = x;
-                            nonprim_y[nonprim_count] = y;
-                            nonprim_z[nonprim_count] = z;
-                            nonprim_E[nonprim_count] = Ehit;
-                            nonprim_count++;
+                        if (angle < best_angle) {
+                            best_angle  = angle;
+                            Enbar_calo  = Ehit;
+							neutral_angle = (float)angle;
+                            has_neutral = 1;
                         }
-                    //     TVector3 r_hit(x, y, z);
-                    //     double angle = r_hit.Angle(p_miss);
-
-                    //     if (angle < best_angle) {
-                    //         best_angle  = angle;
-                    //         Enbar_calo  = Ehit;
-					// 		neutral_angle = (float)angle;
-                    //         has_neutral = 1;
-                    //     }
                     }
-                    // }
                 }
                 // %%%%%%%%%%%%%%%%%%%%%%%% Calorimeter Block:End %%%%%%%%%%%%%%%%%%%%%%%%%
 
