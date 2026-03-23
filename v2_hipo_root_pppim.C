@@ -100,7 +100,7 @@ void writeParticleInfoToTree(ParticleInfo &info, TTree *tree, const std::string 
     tree->Branch(("chi2pid_"    + suffix).c_str(), &info.chi2pid);
 }
 
-void hipo_root_pppim()
+void v2_hipo_root_pppim()
 {
     auto db = TDatabasePDG::Instance();
 
@@ -129,7 +129,7 @@ void hipo_root_pppim()
     auto  config_c12 = chain.GetC12Reader();
     auto &c12        = chain.C12ref();
 
-    chain.Add("/lustre24/expphy/volatile/clas12/leomart/Data/Runs/Spring2019/FT_merged/Pp_eFT_006667.hipo");
+    chain.Add("/lustre24/expphy/volatile/clas12/leomart/Data/Runs/Spring2019/FT_merged/Pp_eFT_all.hipo");
 
     Double_t pp_inv_mass, miss_mass, miss_mass_sq;
     TLorentzVector p_electron_cor;
@@ -144,7 +144,7 @@ void hipo_root_pppim()
 
 	float e_status_val = 0;
 
-    TFile *file       = new TFile("kev_Pppim_eFT_006667.root", "RECREATE");
+    TFile *file       = new TFile("v2_kev_Pppim_eFT_all.root", "RECREATE");
     TTree *tree_indiv = new TTree("Individual", "Individual particle variables");
 
     tree_indiv->Branch("miss_mass",     &miss_mass);
