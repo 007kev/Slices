@@ -1,28 +1,48 @@
 #%% PERPLEXITY CODE
+%matplotlib qt
 import uproot
 import numpy as np
 import awkward as ak
 import matplotlib.pyplot as plt
+from upkit import Histo, Histo2D, RootAnalysis
+from upkit.hists import *
+import vector as vec
 
-f = uproot.open("kev_Pppim_eFD_006616.root")
-t = f["Individual"]
+set_plot_style()
+t = RootAnalysis("v2_kev_Pppim_eFT_006667.root", 'Individual')
 
-mm    = t["miss_mass"].array()
-Enbar = t["Enbar_calo"].array()
-ang   = t["neutral_angle"].array()
-hasN  = t["has_neutral"].array()
+branches = ["miss_mass", "Enbar_calo", 'px_p1', 'py_p1', 'pz_p1', 'px_p2', 'py_p2', 'pz_p2', 'px_e', 'py_e', 'pz_e', 'px_pim', 'py_pim', 'pz_pim', 'nonprim_x', 'nonprim_y', 'nonprim_z', 'nonprim_E']
+t.load_branches(branches)
+
+p_p1 = vec.array({"px": t.data["px_p1"], "py": t.data["py_p1"], "pz": t.data["pz_p1"], "M": np.ones_like(t.data["px_p1"]) * 0.938})
+p_p2 = vec.array({"px": t.data["px_p2"], "py": t.data["py_p2"], "pz": t.data["pz_p2"], "M": np.ones_like(t.data["px_p2"]) * 0.938})
+p_e  = vec.array({"px": t.data["px_e"], "py": t.data["py_e"], "pz": t.data["pz_e"], "M": np.ones_like(t.data["px_e"]) * 0.000511})
+p_pim = vec.array({"px": t.data["px_pim"], "py": t.data["py_pim"], "pz": t.data["pz_pim"], "M": np.ones_like(t.data["px_pim"]) * 0.13957})
+
+P_beam = vec.obj(px=0, py=0, pz=10.6, M=0.000511)
+P_target = vec.obj(px=0, py=0, pz=0, M=0.938)
+P_miss = P_beam + P_target - p_e - p_p1 - p_p2 - p_pim
+
+
+
+
+#%%
+mm    = t.data["miss_mass"]
+Enbar = t.data["Enbar_calo"]
+ang   = t.data["neutral_angle"]
+# hasN  = t.data["has_neutral"]
 
 mm    = ak.to_numpy(mm)
 Enbar = ak.to_numpy(Enbar)
 ang   = ak.to_numpy(ang)
-hasN  = ak.to_numpy(hasN)
+# hasN  = ak.to_numpy(hasN)
 
 # 1) Apply neutron-like MM window
-mm_low, mm_high = 0.8, 1.15
+mm_low, mm_high = 0.85, 1.05
 mm_window = (mm > mm_low) & (mm < mm_high)
 
-# 2) Keep events with a neutral candidate and valid angle
-neutral_ok = (hasN == 1) & (Enbar > 0.0) & (ang > 0.0)
+# 2) Keep events with a anti neutron candidate and valid angle
+neutral_ok = (hasN == 1)
 sel_angle = mm_window & neutral_ok
 
 ang_sel = np.rad2deg(ang[sel_angle])
@@ -31,7 +51,7 @@ print(f"Total events: {t.num_entries}")
 print("Events in MM window:", np.count_nonzero(mm_window))
 print("Events with neutral + valid angle:", len(ang_sel))
 
-
+#%%
 # 3) Histogram of neutral_angle
 plt.figure()
 plt.hist(ang_sel, bins=60, range=(0.0, 180), histtype="step")
@@ -41,7 +61,7 @@ plt.title("Angle between neutral ECAL hit and missing momentum")
 plt.grid(alpha=0.3)
 plt.tight_layout()
 plt.show()
-
+#%%
 # 4) After inspecting this plot, pick a theta_max
 theta_max = 30 # adjust after looking at the distribution
 angle_cut = (np.rad2deg(ang) > 0.0) & (np.rad2deg(ang) < theta_max)
@@ -60,55 +80,9 @@ plt.grid(alpha=0.3)
 plt.tight_layout()
 plt.show()
 
+print('---End of Perplexity Code----')
+#%%
+Histo2D(mm, np.rad2deg(ang), bins = 10, range = ((0.75, 1.25), (0, 35)), norm='log')
+plt.axvline(0.939)
 
-
-
-
-
-
-# %% GEMINI CODE
-import uproot
-import matplotlib.pyplot as plt
-import numpy as np
-
-# 1. Open the file and extract the data
-file = uproot.open("kev_Pppim_eFD_006616.root")
-tree = file["Individual"]
-df = tree.arrays(["miss_mass", "neutral_angle", "e_status", "Enbar_calo"], library="pd")
-
-# 2. Convert angle from radians to degrees
-df['angle_deg'] = df['neutral_angle'] * (180.0 / np.pi)
-
-# 3. Create a 2D Histogram (Missing Mass vs. Neutral Angle)
-plt.figure(figsize=(10, 6))
-
-# We look at Missing Mass around the neutron mass (0.5 to 1.5 GeV)
-# and Angles from 0 to 50 degrees
-plt.hist2d(df['miss_mass'], df['angle_deg'], 
-           bins=[60, 60], range=[[0.9, 1.0], [0, 180]], 
-           cmap='viridis', cmin=1)
-
-plt.colorbar(label='Counts')
-plt.title(r'Missing Mass of $e p \to e p p \pi^- X$ vs. ECAL Cluster Angle')
-plt.xlabel('Missing Mass (GeV/$c^2$)')
-plt.ylabel('Angle between $P_{miss}$ and Cluster (Degrees)')
-
-# Draw lines where we expect the antineutron signal
-plt.axvline(0.939, color='red', linestyle='--', alpha=0.7, label='Antineutron Mass (0.939 GeV)')
-# plt.axhline(10, color='orange', linestyle='--', alpha=0.7, label='Typical 10° Cut')
-plt.legend()
-plt.tight_layout()
-plt.show()
-
-
-# Define the "Golden" criteria
-# Angle < 10 degrees and Missing Mass within 50 MeV of the neutron mass
-golden_cut = (df['angle_deg'] < 30) & (df['miss_mass'] > 0.889) & (df['miss_mass'] < 0.989)
-
-# Create a 'Golden' dataframe
-df_gold = df[golden_cut]
-
-print(f"Found {len(df_gold)} Antineutrons")
-print("Deposited Energies <30deg (Enbar_calo) in GeV:")
-print(df_gold['Enbar_calo'].values)
 # %%

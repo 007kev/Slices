@@ -1,7 +1,16 @@
 #Created on January 3 2026 01:14
 #Author: Kevin Arias
-#%%
+
 # importing libraries
+#%%
+%matplotlib qt
+import uproot
+import numpy as np
+import matplotlib.pyplot as plt
+import vector as vec
+import scipy as sp
+import matplotlib as mpl
+from upkit import Histo, Histo2D, RootAnalysis, Fit, tools
 
 # constants
 mass_p = 0.938272088  # GeV/c^2 for proton
@@ -10,7 +19,7 @@ mass_pip = 0.13957     # GeV/c^2 for pion
 mass_k = 0.49367     # GeV/c^2 for kaon
 mass_e = 0.000511     # GeV/c^2 for electron
 E_beam = 10.2         # GeV (assuming beam energy of 10.6 GeV)
-mass_n = .939565      # GeV/c^2 for neutron
+mass_n = 0.939565      # GeV/c^2 for neutron
 
 # defining fitting functions to be used throughout this script
 def gauss(x, A, mu, sigma):
@@ -36,46 +45,75 @@ def expo_poly4(x, A ,B, a, b, c, d, e):
 
 # no idea who named these branches/trees
 #%%
-%matplotlib qt
-import uproot
-import numpy as np
-import awkward as ak
-import matplotlib.pyplot as plt
-from upkit import Histo, Histo2D, RootAnalysis
-from upkit.hists import *
-import vector as vec
+# Open the ROOT file and load the tree/data table which can hold different types of data
+file = uproot.open('Pppim_eFD_all2.root')
+tree = file['Individual'] # I did not name this tree, I assumed it means data from individual events not binned or summed
 
-set_plot_style()
-t = RootAnalysis("kev_Pppim_eFT_all.root", 'Individual')
+# making arrays of momentum information for electron, pi minus, and both protons from called tree
+# this is the scattered electron not the e_beam
+px_e = tree['px_e'].array()
+py_e = tree['py_e'].array()
+pz_e = tree['pz_e'].array()
 
-branches = ["miss_mass", "Enbar_calo", 'px_p1', 'py_p1', 'pz_p1', 'px_p2', 'py_p2', 'pz_p2', 'px_e', 'py_e', 'pz_e', 'px_pim', 'py_pim', 'pz_pim', 'nonprim_x', 'nonprim_y', 'nonprim_z', 'nonprim_E']
-t.load_branches(branches)
+px_p1 = tree['px_p1'].array()
+py_p1 = tree['py_p1'].array()
+pz_p1 = tree['pz_p1'].array()
+
+px_p2 = tree['px_p2'].array()
+py_p2 = tree['py_p2'].array()
+pz_p2 = tree['pz_p2'].array()
+
+px_pim = tree['px_pim'].array()
+py_pim = tree['py_pim'].array()
+pz_pim = tree['pz_pim'].array()
+
+def p_mag(x, y , z):
+    return np.sqrt(x**2 + y**2 + z**2)
+# magnitude calculations for later (GeV/c)
+e_mag = p_mag(px_e, py_e, pz_e) 
+p1_mag = p_mag(px_p1, py_p1, pz_p1)
+p2_mag = p_mag(px_p2, py_p2, pz_p2)
+pim_mag = p_mag(px_pim, py_pim, pz_pim)
+
+# 32,911,203 data points each??
+
+# extracting delta time information 
+dt_e = tree['deltaTime_e'].array()
+dt_p1 = tree['deltaTime_p1'].array()
+dt_p2 = tree['deltaTime_p2'].array()
+dt_pim = tree['deltaTime_pim'].array()
+
+# extracting chi2pid information
+e_chi2pid = tree['chi2pid_e'].array()
+p1_chi2pid = tree['chi2pid_p1'].array()
+p2_chi2pid = tree['chi2pid_p2'].array()
+pim_chi2pid = tree['chi2pid_pim'].array()
+#%% Definning 4 momenta
+p_beam = vec.obj(px = 0, py = 0, pz = 10.2, E = 10.2)
+p_target = vec.obj(px = 0, py = 0, pz = 0, M = 0.938272088)
+
+p_e = vec.array({'px': px_e, "py": py_e, "pz": pz_e, "M": np.ones_like(px_e) * mass_e})
+p_p1 = vec.array({'px': px_p1, "py": py_p1, "pz": pz_p1, "M": np.ones_like(px_p1) * mass_p})
+p_p2 = vec.array({'px': px_p2, "py": py_p2, "pz": pz_p2, "M": np.ones_like(px_p2) * mass_p})
+p_pim = vec.array({'px': px_pim, "py": py_pim, "pz": pz_pim, "M": np.ones_like(px_pim) * mass_pim})
 
 
-p_p1 = vec.array({"px": t.data["px_p1"], "py": t.data["py_p1"], "pz": t.data["pz_p1"], "M": np.ones_like(t.data["px_p1"]) * 0.938})
-p_p2 = vec.array({"px": t.data["px_p2"], "py": t.data["py_p2"], "pz": t.data["pz_p2"], "M": np.ones_like(t.data["px_p2"]) * 0.938})
-p_e  = vec.array({"px": t.data["px_e"], "py": t.data["py_e"], "pz": t.data["pz_e"], "M": np.ones_like(t.data["px_e"]) * 0.000511})
-p_pim = vec.array({"px": t.data["px_pim"], "py": t.data["py_pim"], "pz": t.data["pz_pim"], "M": np.ones_like(t.data["px_pim"]) * 0.13957})
-
-p_beam = vec.obj(px=0, py=0, pz=10.6, M=0.000511)
-p_target = vec.obj(px=0, py=0, pz=0, M=0.938)
-p_miss = p_beam + p_target - p_e - p_p1 - p_p2 - p_pim
 #%% missing mass distribution
 
 # MM2 = E_mm**2 - (px_mm**2 + py_mm**2 + pz_mm**2)
 MM_vec = p_beam + p_target - p_e - p_p1 - p_p2 - p_pim
 
 plt.figure()
-plt.hist(np.array(MM_vec.M), bins=20, range=(0.01, 2.5), histtype='step', color='black')
+plt.hist(np.array(MM_vec.M), bins=200, range=(0.01, 2.5), histtype='step', color='black')
 plt.axvline(mass_n, linestyle='--', label=f'Antineutron {mass_n}GeV' )
 plt.legend()
 plt.xlabel(r'$\bar{n}$ Missing Mass(GeV)')
 plt.ylabel('Counts')
-plt.title(r"Missing Mass Distribution for $ep \to e' p' p \pi^-$ (FT)")
+plt.title(r"Missing Mass Distribution for $ep \to e' p' p \pi^-$")
 plt.legend()
 plt.tight_layout()
-plt.savefig('FT_MM_no_cuts.pdf')
-plt.show()
+plt.savefig('MM_no_cuts.pdf')
+# plt.show()
 
 
 
@@ -84,11 +122,11 @@ plt.show()
 #------------------------------------------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------------------------------------------
-#%% This part is mainly to practice fitting and not necessary yet
+#%% This part is mainly to practice fitting but is necessary later!!!
 
 # where did 0.02 come from?
 params = [4000, mass_n, 0.02, 1, 1, 1, 1, 1]
-bounds = ((0, 0.9, 0, -np.inf, -np.inf, -np.inf, -np.inf, -np.inf), (100000, 1.05, 1, np.inf, np.inf, np.inf, np.inf, np.inf))
+bounds = ((0, 0.9, 0, -np.inf, -np.inf, -np.inf, -np.inf, -np.inf), (60000, 1.05, 1, np.inf, np.inf, np.inf, np.inf, np.inf))
 bin_num = int((1.25-0.75)/(10e-3)) # 50 bins
 bin_width = (1.25-0.75)/bin_num #  this is the bin width, 10e-3, because the resolution of the detector is 10-15 MeV
 
@@ -129,24 +167,23 @@ def fit_dist(data, params, bounds, bin_num, fit_range=(0.75, 1.25)):
     x = np.linspace(fit_range[0], fit_range[1], 10000)
 
     # area of gaussian (height*width) divided by bin width to convert to number of events in histogram bins
-    # used later
     fit_yield = (np.sqrt(2*np.pi) * fit_params[0] * fit_params[2])/(bin_width)
 
     # annotating graph and then extracting
-    plt.axvline(x=mass_n, color='red', linestyle='--', linewidth=2, label = "Neutron mass: 939.6 MeV")
+    plt.axvline(x=mass_n, color='red',alpha=0.2, linestyle='--', linewidth=2, label = "Neutron mass: 939.6 MeV")
 
     A_uncertainty, mu_uncertainty, sigma_uncertainty = np.sqrt(np.diag(fit_cov))[:3]
 
     # To show total detected events
-    plt.axvline(x = 1, color = 'none', label = f"Total Events: {len(MM_vec.M):.3e}")
+    # plt.axvline(x = 1, color = 'none', label = f"Total Events: {len(MM_vec.M):.3e}")
 
-    what_sigma = 1
+    
     # remember error propagation equation with partial derivatives
-    yield_uncertainty = what_sigma*np.sqrt( 
+    yield_uncertainty = np.sqrt( 
         ((((np.sqrt(2*np.pi)*fit_params[2]) / bin_width) *A_uncertainty)**2) + 
         ((((np.sqrt(2*np.pi)*fit_params[0]) / bin_width) *sigma_uncertainty)**2) 
                                           )
- 
+    
     print(f'Relative Uncertainty in Yield = {yield_uncertainty/fit_yield}')
 
     plt.errorbar(bin_centers, bin_content, yerr=np.sqrt(bin_content), fmt = 'none', color = 'black')
@@ -171,13 +208,31 @@ def fit_dist(data, params, bounds, bin_num, fit_range=(0.75, 1.25)):
 
     plt.axvline(
         x = 1, color = 'none', 
-        label = f"$A$ = {fit_params[0]:.3g} $\pm$ {A_uncertainty:.0f}\n$\mu$ = {fit_params[1]:.3g} $\pm$ {mu_uncertainty:.1g}\n$\sigma$ = {fit_params[2]:.3g} $\pm$ {sigma_uncertainty:.1g}\nYield = {int(fit_yield)} $\pm$ {yield_uncertainty:.3g} (${what_sigma}\sigma$)")
+        label = f"$A$ = {fit_params[0]:.3g} $\pm$ {A_uncertainty:.0f}\n$\mu$ = {fit_params[1]:.3g} $\pm$ {mu_uncertainty:.1g}\n$\sigma$ = {fit_params[2]:.3g} $\pm$ {sigma_uncertainty:.1g}\nYield = {int(fit_yield)} $\pm$ {yield_uncertainty:.0f}")
+   
+    # 3σ window
+    what_sigma = 3
+    M_low = fit_params[1] - what_sigma*fit_params[2] # mu - 3sigma
+    M_high = fit_params[1] + what_sigma*fit_params[2] # mu + 3sigma
 
-    # S / sqrt( S + B )
-    stat_sig = fit_params[0] / ( np.sqrt( fit_params[0] + poly4(fit_params[1], *fit_params[3:]) ) )
+    mass_window = (data >= M_low) & (data <= M_high)
+    total_window_counts = np.count_nonzero(mass_window)
+
+    # percent of nbar in total counts of 3sigma window
+    nbar_in_signal = fit_yield*0.9973/total_window_counts
+    print(rf'% purity of nbar = {nbar_in_signal*100:.3g}%')
+    plt.axvline(x=1, color='none', label=rf'Purity of $\bar(n)$ = {nbar_in_signal*100:.3g}%')
+
+    # Signal / sqrt( total counts )
+    S = fit_yield*0.9973 # The guassian Amplitude
+
+    stat_sig = S / ( np.sqrt( total_window_counts) )
     print(f'Statistical Significance = {stat_sig:.4f}')
-    plt.axvline(x = 1, color = 'none', label = f"Statistical\nSignificance = {stat_sig:.3f}")
+    plt.axvline(x = 1, color = 'none', label = rf"Statistical \n Significance = {stat_sig:.3f}(${what_sigma}\sigma$ window)")
 
+    # plotting 3 sigma region for visual
+    plt.axvline(x = M_low, color='green', alpha=0.1, linestyle='--', linewidth=2, label=rf'$\pm$ {what_sigma}$\sigma$')
+    plt.axvline(x = M_high, color='green',alpha=0.1, linestyle='--', linewidth=2)
 
     plt.hist(data, bins = bin_num, range=fit_range, color='white')
     plt.plot(x, gauss_poly4(x, *fit_params), color = 'red', label = "Background + Signal")
@@ -190,104 +245,98 @@ def fit_dist(data, params, bounds, bin_num, fit_range=(0.75, 1.25)):
     plt.legend()
     plt.tight_layout()
     # plt.show()
+    
 
 fit_dist(MM_vec.M, params, bounds, bin_num, fit_range=(0.75, 1.25))
-plt.title('Gaussian + Background Fit to Antineutron MM peak (FT)')
+plt.title('Gaussian + Background Fit to Antineutron MM peak (No Cuts)')
 plt.tight_layout()
-plt.savefig('FT_MM_no_cuts_fit.pdf')
+plt.savefig('MM_no_cuts_fit.pdf')
 #------------------------------------------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------------------------------------------
 #------------------------------------------------------------------------------------------------------------------------------------------------------
-
-#%%
-
-# fig, ax = plt.subplots()
-# h_M = Histo(MM_vec.M, bins = 100, range = (0.65, 1.25), color = 'white', ax = ax)
-# h_M.plot_exp(fmt = '.', color ='black', ax = ax)
-
-# fit_M = Fit(tools.lorentz_poly4_fit, params, bounds, histo=h_M, signal = tools.lorentz_fit, background=tools.poly4_fit, bins = 100, range = (0.65, 1.25))
 
 
 #%% invariant mass of final hadronic system (W)
 p_W = p_beam + p_target - p_e
 m_hadrons = 2*mass_p + mass_pim + mass_n
 # another way could just be the sum of the final state hadrons (p' + p + pi + n)
-#%%
+
 plt.figure()
 plt.hist(p_W.M, bins=100, range = (0, 5), histtype='step', color='k')
 plt.axvline(m_hadrons, color = 'red', label=r'$2m_p + m_{\pi} + m_n$')
 plt.legend()
 plt.xlabel(r"$W_{(p' p \pi^- \bar{n})}$ (GeV)")
 plt.ylabel('Counts')
-plt.title('Hadronic Invariant Mass Spectrum (FT)')
+plt.title('Hadronic Invariant Mass Spectrum')
 plt.tight_layout()
-plt.savefig('FT_W_no_cuts.pdf')
+plt.savefig('W_no_cuts.pdf')
 # plt.show()
-
 
 
 # %% This is a CUT!!! 
 # Data is like a window and a cut is like a window cover
 
 # cut_W = p_W.M > (2*mass_p + mass_pim + mass_n) = 2.9____
-cut_W = (p_W.M > 3.426)  # you want a little more room
-#%%
+cut_W = (p_W.M > 3.3)  # you want a little more room
+
 plt.figure()
-plt.hist2d(np.array(p_W.M), np.array(MM_vec.M), bins = 1000, range = ((0, 5), (0, 2.5)), norm = 'log', cmap='inferno')
-plt.axvline(3.426, linestyle='--', color='red')
+plt.hist2d(np.array(p_W.M), np.array(MM_vec.M), bins = 100, range = ((0, 5), (0, 2.5)), norm = 'log')
+plt.axvline(3.3, linestyle='--', color='red')
 plt.xlabel(r"$W_{(p' p \pi^- \bar{n})}$ (GeV)")
 plt.ylabel(r'$\bar{n}$ Missing Mass(GeV)')
-plt.title(r'$\bar{n}_{MM}$ vs W Showing Electroproduction Band (no cuts) (FT)')
+plt.title(r'$\bar{n}_{MM}$ vs W Showing Electroproduction Band (no cuts)')
 plt.text(
-    3.426, 0.915,
-    '                               ',
+    3.2, 0.9,
+    '                          ',
     bbox=dict(boxstyle='round', facecolor='none', alpha=1)        
 )
 
 plt.tight_layout()
-plt.savefig('FT_MM_vs_W.pdf')
+plt.savefig('MM_vs_W.pdf')
 # plt.show()
 
 # Now with cut
 plt.figure()
-plt.hist2d(np.array(p_W.M[cut_W]), np.array(MM_vec.M[cut_W]), bins = 1000, range = ((0, 5), (0, 2.5)), norm = 'log', cmap='inferno')
+plt.hist2d(np.array(p_W.M[cut_W]), np.array(MM_vec.M[cut_W]), bins = 100, range = ((0, 5), (0, 2.5)), norm = 'log')
 plt.xlabel(r"$W_{(p' p \pi^- \bar{n})}$ (GeV)")
 plt.ylabel(r'$\bar{n}$ Missing Mass (GeV)')
-plt.title(r'$\bar{n}_{MM}$ vs W Showing Electroproduction Band (Threshold cut) (FT)')
+plt.title(r'$\bar{n}_{MM}$ vs W Showing Electroproduction Band (Threshold cut)')
 plt.text(
     1, 1.5,
-    r'Threshold cut: 3.426 GeV < W',
+    r'Threshold cut: 3.3 GeV < W',
     bbox=dict(boxstyle='round', facecolor='white', alpha=1)
 )
 plt.text(
-    3.426, 0.915,
+    3.2, 0.9,
     '                          ',
     bbox=dict(boxstyle='round', facecolor='none', alpha=1)        
 )
 plt.tight_layout()
-plt.savefig('FT_MM_vs_W_threshold_cut.pdf')
+plt.savefig('MM_vs_W_threshold_cut.pdf')
 # plt.show()
+
+
+
 
 
 # %% Missing Mass plot showing threshold cut
 
 plt.figure()
 # total (background + signal)
-plt.hist(MM_vec.M, bins = 10, range = (0.85, 1.15), histtype = 'step', color = 'black', label='All events (No cuts)')
-
-# signal with cut --> [cut_W]
-plt.hist(MM_vec.M[cut_W], bins = 10, range = (0.85, 1.15), color = 'orange', alpha = 0.5, label='Above threshold cut(signal-like))')
+plt.hist(MM_vec.M, bins = 20, range = (0.85, 1.15), histtype = 'step', color = 'black', label='All events (No cuts)')
 
 # background with cut
-plt.hist(MM_vec.M[~cut_W], bins = 10, range = (0.85, 1.15), color = 'green', alpha = 0.5, label='Below threshold cut (background-like)')
+plt.hist(MM_vec.M[~cut_W], bins = 20, range = (0.85, 1.15), color = 'green', alpha = 0.5, label='Below threshold cut (background-like)')
 
+# signal with cut --> [cut_W]
+plt.hist(MM_vec.M[cut_W], bins = 20, range = (0.85, 1.15), color = 'blue', alpha = 0.5, label='Above threshold cut(signal-like))')
 
 plt.legend()
 plt.xlabel(r'$\bar{n}$ Missing Mass(GeV)')
 plt.ylabel('Counts/10 MeV')
-plt.title(r'Effect of $W$ Threshold Cut on Missing-Mass Spectrum(FT)')
+plt.title(r'Effect of $W$ Threshold Cut on Missing-Mass Spectrum')
 plt.tight_layout()
-plt.savefig('FT_MM_threshold_cut.pdf')
+plt.savefig('MM_threshold_cut.pdf')
 # plt.show()
 
 # these are now fitted with fit function (fit_distro) from before
@@ -296,15 +345,15 @@ plt.savefig('FT_MM_threshold_cut.pdf')
 # background + signal 
 # plt.figure()
 # fit_dist(MM_vec.M, params, bounds, bin_num, fit_range=(0.75, 1.25))
-# plt.savefig('FT_MM1.pdf')
+# plt.savefig('MM1.pdf')
 # plt.show()
 
 # signal
 plt.figure()
 fit_dist(MM_vec.M[cut_W], params, bounds, bin_num, fit_range=(0.75, 1.25))
-plt.title('Fitted MM Spectrum After W Cut(FT)')
+plt.title('Fitted MM Spectrum After W Cut')
 plt.tight_layout()
-plt.savefig('FT_MM2.pdf')
+plt.savefig('MM2.pdf')
 plt.show()
 
 # just background
@@ -314,40 +363,41 @@ plt.show()
 # plt.show()
 
 
+
 # %% These are 2d histograms of MM vs W with a momemtum magnitude cut and threshold cut with regards to different particles
 plt.figure()
-plt.hist2d(np.array(p_p1.mag[cut_W]), np.array(MM_vec.M[cut_W]), bins = 1000, range = ((0, 7), (0, 2.5)), norm = 'log', cmap='inferno')
+plt.hist2d(np.array(p_p1.mag[cut_W]), np.array(MM_vec.M[cut_W]), bins = 100, range = ((0, 7), (0, 2.5)), norm = 'log')
 plt.xlabel(r'$|P_{p1}|$ (GeV)')
 plt.ylabel('MM Distribution (GeV)')
-plt.title(r'MM (with threshold cut) vs $|P_{p1}|$(FT)')
+plt.title(r'MM (with threshold cut) vs $|P_{p1}|$')
 plt.text(
     1.612, 0.941,
     '                                                              ',
     bbox=dict(boxstyle='round', facecolor='none', alpha=1)        
 )
 plt.tight_layout()
-plt.savefig('FT_p1_mom_mag_threshold.pdf')
+plt.savefig('p1_mom_mag_threshold.pdf')
 plt.show()
 
 plt.figure()
-plt.hist2d(np.array(p_p2.mag[cut_W]), np.array(MM_vec.M[cut_W]), bins = 1000, range = ((0, 7), (0, 2.5)), norm = 'log', cmap='inferno')
+plt.hist2d(np.array(p_p2.mag[cut_W]), np.array(MM_vec.M[cut_W]), bins = 100, range = ((0, 7), (0, 2.5)), norm = 'log')
 plt.xlabel(r'$|P_{p2}|$ (GeV)')
 plt.ylabel('MM Distribution (GeV)')
-plt.title(r'MM (with threshold cut) vs $|P_{p2}|$ (FT)')
+plt.title(r'MM (with threshold cut) vs $|P_{p2}|$')
 plt.text(
     0.842, 0.915,
     '                                   ',
     bbox=dict(boxstyle='round', facecolor='none', alpha=1)        
 )
 plt.tight_layout()
-plt.savefig('FT_p2_mom_mag_threshold.pdf')
+plt.savefig('p2_mom_mag_threshold.pdf')
 plt.show()
 
 plt.figure()
-plt.hist2d(np.array(p_e.mag[cut_W]), np.array(MM_vec.M[cut_W]), bins = 1000, range = ((0, 7), (0, 2.5)), norm = 'log', cmap='inferno')
+plt.hist2d(np.array(p_e.mag[cut_W]), np.array(MM_vec.M[cut_W]), bins = 100, range = ((0, 7), (0, 2.5)), norm = 'log')
 plt.xlabel(r"$|P_{e'}|$ (GeV)")
 plt.ylabel('MM Distribution (GeV)')
-plt.title(r"MM (with threshold cut) vs $|P_{e'}|$ (FT)")
+plt.title(r"MM (with threshold cut) vs $|P_{e'}|$")
 plt.text(
     0.753, 0.927,
     '                                            ',
@@ -355,56 +405,56 @@ plt.text(
 )
 
 plt.tight_layout()
-plt.savefig('FT_e_mom_mag_threshold.pdf')
+plt.savefig('e_mom_mag_threshold.pdf')
 plt.show()
 
 plt.figure()
-plt.hist2d(np.array(p_pim.mag[cut_W]), np.array(MM_vec.M[cut_W]), bins = 1000, range = ((0, 7), (0, 2.5)), norm = 'log', cmap='inferno')
+plt.hist2d(np.array(p_pim.mag[cut_W]), np.array(MM_vec.M[cut_W]), bins = 100, range = ((0, 7), (0, 2.5)), norm = 'log')
 plt.xlabel(r'$|P_{\pi^-}|$ (GeV)')
 plt.ylabel('MM Distribution (GeV)')
-plt.title(r'MM (with threshold cut) vs $|P_{\pi^-}|$(FT)')
+plt.title(r'MM (with threshold cut) vs $|P_{\pi^-}|$')
 plt.text(
     0.185, 0.927,
     '                                ',
     bbox=dict(boxstyle='round', facecolor='none', alpha=1)        
 )
 plt.tight_layout()
-plt.savefig('FT_pi_mom_mag_threshold.pdf')
+plt.savefig('pi_mom_mag_threshold.pdf')
 plt.show()
 
 
 
 # %% This is a momentum magnitude cut using all particles
 
-cut_mag = cut_W & (p_p1.mag > 1.3520) & (p_pim.mag > 0.2531 ) & (p_e.mag > 0.2800) & (p_p2.mag > 0.8133)
+cut_mag = cut_W & (p_p1.mag > 1.771) & (p_pim.mag < 2.232) & (p_e.mag > 0.911) & (p_p2.mag < 2.730)
 # to get these numbers, I went into spyder where the cursor was mapped on the plot,
 # so I hovered over the x value I wanted for each edge if the "antineutron line"
-#%%
+
 
 # this one will not work because there is no "math operator for it"
 # cut_mag = cut_W & (1.771 < p_p1.mag < 4.831) & (0.217 < p_pim.mag < 2.232) & (0.911 < p_e.mag < 3.363) & (1.771 < p_p2.mag < 4.831) 
 
 plt.figure()
-plt.hist2d(np.array(p_p1.mag[cut_mag]), np.array(MM_vec.M[cut_mag]), bins = 1000, range = ((0, 7), (0, 2.5)), norm = 'log', cmap='inferno')
-plt.xlabel(r"$|P_{p_1, p_2, \pi^-, e'}|$ (GeV)")
-plt.ylabel(r'$\bar{n}$ MM (GeV)')
-plt.title('MM Distribution vs Momentum Magnitude (FT)')
+plt.hist2d(np.array(p_p1.mag[cut_mag]), np.array(MM_vec.M[cut_mag]), bins = 100, range = ((2.5, 7), (0, 2.5)), norm = 'log')
+plt.xlabel('Momemtum magnitude of (detected) final state particles')
+plt.ylabel('MM distro')
+plt.title('MM distribution vs Momentum magnitude')
 cuts_txt= (
         "Cuts: \n"
-        r"1.3520 GeV < $|P_{p_1}|$" "\n" 
-        r"0.8133 GeV < $|P_{p_2}|$" "\n"
-        r"0.2531 GeV < $|P_{\pi^-}|$" "\n"
-        r"0.2800 GeV < $|P_{e'}|$" "\n"
-        "3.426 GeV< W"
+        r"1.771 GeV < $|P_{p_1}|$" "\n" 
+        r"0.911 GeV < $|P_{p_2}|$" "\n"
+        r"0.217 GeV < $|P_{\pi^-}|$" "\n"
+        r"0.911 GeV < $|P_{e'}|$" "\n"
+        "3.3 GeV< W"
 )
 
 plt.text(
-    5,1.65,
+    5,1.5,
     cuts_txt    
 )
 
 plt.tight_layout()
-plt.savefig('FT_2d_histo_all_mom_mag.pdf')
+plt.savefig('2d_histo_all_mom_mag.pdf')
 plt.show()
 
 
@@ -412,40 +462,43 @@ plt.show()
 #%%This is a histo to visualize combined magnitude cuts the signal we want
 plt.figure()
 plt.hist(MM_vec.M, bins = 20, range = (0.85, 1.15), histtype = 'step', color = 'black', label='All events (No cuts)')
-plt.hist(MM_vec.M[cut_mag], bins = 20, range = (0.85, 1.15), color = 'orange', alpha = 0.5, label='Above cuts cut(signal-like))')
 plt.hist(MM_vec.M[~cut_mag], bins = 20, range = (0.85, 1.15), color = 'green', alpha = 0.5, label='Below cuts (background-like)')
+plt.hist(MM_vec.M[cut_mag], bins = 20, range = (0.85, 1.15), color = 'blue', alpha = 0.5, label='Above cuts cut(signal-like))')
 plt.xlabel('MM distribution (GeV)')
 plt.ylabel('Counts')
-plt.title('MM Distribution as a Result of Momentum Magnitude Cuts (FT)')
+plt.title('MM Distribution as a Result of Momentum Magnitude Cuts')
 plt.legend()
 plt.tight_layout()
-plt.savefig('FT_MM_all_mom_mag_.pdf')
+plt.savefig('MM_all_mom_mag_.pdf')
 plt.show()
 
 plt.figure()
 fit_dist(MM_vec.M[cut_mag], params, bounds, bin_num, fit_range=(0.75, 1.25))
-plt.title(r'Fitted MM Spectrum After Cuts $(W, |P|)$(FT)')
+plt.title(r'Fitted MM Spectrum After Cuts $(W, |P|)$')
 plt.tight_layout()
-plt.savefig('FT_all_mom_mag_fit.pdf')
+plt.savefig('all_mom_mag_fit.pdf')
 plt.show()
 
 
-# %% Beginning of Chi2pid cut
 
-# plt.hist2d(np.array(e_chi2pid), np.array(MM_vec.M), bins = 100, range = ((-0.0005, 0.0005), (0, 2.5)), norm = 'log')
-# plt.xlabel(r"$\chi^2_{PID}(e)$")
+# %%Beginning of Chi2pid cut
+# Chi2PID = not like chi squared, it is a measure of how close the particle in question is to its literature value. 
+# values near 0 mean it looks like the particle in question
+
+# plt.hist2d(np.array(p1_chi2pid), np.array(MM_vec.M), bins = 100, range = ((-5, 5), (0, 2.5)), norm = 'log')
+# plt.xlabel(r"$\chi^2_{PID}(p1)$")
 # plt.ylabel(r'$\bar{n}_{MM} (GeV)$')
-# plt.title(r'$\bar{n}$ missing mass vs proton-1 PID quality ($\chi^2_{\mathrm{PID}}(e)$)')
-# # plt.axhline(mass_n, linestyle='--', color='red', alpha=0.1)
-# # plt.text(
-# #     -1.8, mass_n-0.01,
-# #     '                                       ',
-# #     bbox=dict(boxstyle='round', facecolor='none', alpha=0.5)
-# # )
+# plt.title(r'$\bar{n}$ missing mass vs proton-1 PID quality ($\chi^2_{\mathrm{PID}}(p_1)$)')
+# plt.axhline(mass_n, linestyle='--', color='red', alpha=0.1)
+# plt.text(
+#     -1.8, mass_n-0.01,
+#     '                                       ',
+#     bbox=dict(boxstyle='round', facecolor='none', alpha=0.5)
+# )
 # cbar = plt.colorbar()
 # cbar.set_label('Counts per bin')
 # plt.tight_layout()
-# plt.savefig('FT_eMM_Chi2PID.pdf')
+# plt.savefig('p1_Chi2PID.pdf')
 # plt.show()
 
 # with a loop for all four detected particles
@@ -466,19 +519,18 @@ pid_labels = {
 
 for name, chi2 in pids.items():
     plt.figure()
-    plt.hist2d(np.array(chi2), np.array(MM_vec.M), bins = 100, cmap='inferno',range = ((-5, 5), (0, 2.5)), norm = 'log')
+    plt.hist2d(np.array(chi2), np.array(MM_vec.M), bins = 100, range = ((-5, 5), (0, 2.5)), norm = 'log')
     plt.xlabel(rf"$\chi^2_{{\mathrm{{PID}}}} ({pid_labels[name]})$")
     plt.ylabel(r'$\bar{n}_{MM} (GeV)$')
     plt.title(f'Missing Mass vs PID Quality({pid_labels[name]})')
     cbar = plt.colorbar()
     cbar.set_label('Counts per bin')
     plt.tight_layout()
-    plt.savefig(f'FT_{name}_Chi2PID.pdf')
+    plt.savefig(f'{name}_Chi2PID.pdf')
     plt.show()
-
 #%%
 chi2_cuts = {
-    'p1':(-4.00, 4),
+    'p1':(-3.00, 4),
     'p2': (-4, 4.000),
     'pim': (-4.00, 4.00),
     'e': (-4.00, 4.00) 
@@ -490,14 +542,14 @@ for name, chi2 in pids.items():
     cuts_chi[name] = (chi2 >= lo) & (chi2 <= hi)
 #%% p1 separated MM with chi2pid cut
 
-# cut_chi2_p1 = cuts_chi['p1'] & cut_mag  
-cut_chi2_p1 = cut_mag  
+cut_chi2_p1 = cuts_chi['p1'] & cut_mag  
+
 plt.figure()
-plt.hist(MM_vec.M, bins=10, range=(0.85, 1.15),
+plt.hist(MM_vec.M, bins=30, range=(0.85, 1.15),
          histtype='step', color='black', label='No PID cut')
-plt.hist(MM_vec.M[~cut_chi2_p1], bins=10, range=(0.85, 1.15),
+plt.hist(MM_vec.M[~cut_chi2_p1], bins=30, range=(0.85, 1.15),
          color='green', alpha=0.5, label=r'Fail $\chi^2_{\mathrm{PID}}(p1)$')
-plt.hist(MM_vec.M[cut_chi2_p1], bins=10, range=(0.85, 1.15),
+plt.hist(MM_vec.M[cut_chi2_p1], bins=30, range=(0.85, 1.15),
          color='blue', alpha=0.5, label=r'Pass $\chi^2_{\mathrm{PID}}(p1)$')
 plt.xlabel(r'$\bar{n}$ missing mass (GeV)')
 plt.ylabel('Counts')
@@ -540,60 +592,40 @@ cut_chi2_e = cuts_chi['e'] & cut_mag
 plt.figure()
 plt.hist(MM_vec.M, bins=30, range=(0.85, 1.15),
          histtype='step', color='black', label='No PID cut')
-plt.hist(MM_vec.M[cut_chi2_e], bins=30, range=(0.85, 1.15),
-         color='blue', alpha=0.5, label=r'Pass $\chi^2_{\mathrm{PID}}(e)$')
 plt.hist(MM_vec.M[~cut_chi2_e], bins=30, range=(0.85, 1.15),
          color='green', alpha=0.5, label=r'Fail $\chi^2_{\mathrm{PID}}(e)$')
+plt.hist(MM_vec.M[cut_chi2_e], bins=30, range=(0.85, 1.15),
+         color='blue', alpha=0.5, label=r'Pass $\chi^2_{\mathrm{PID}}(e)$')
 plt.xlabel(r'$\bar{n}$ missing mass (GeV)')
 plt.ylabel('Counts')
 plt.title(r'MM with $\chi^2_{\mathrm{PID}}(e)$ cut')
-
-
-
 # %% MM plot showing Chi2PID cut
-cut_chi2pid = (np.abs(p1_chi2pid) <= 2.5) & cut_mag
+cut_chi2pid = cuts_chi['p1'] & cuts_chi['p2'] & cuts_chi['pim'] & cuts_chi['e'] & cut_mag
 
 plt.figure()
-plt.hist(MM_vec.M, bins = 30, range = (0.85, 1.15), histtype = 'step', color = 'black', label='All events (No cuts)')
-plt.hist(MM_vec.M[cut_chi2pid], bins = 30, range = (0.85, 1.15), color = 'orange', alpha = 0.5, label='Above cuts cut(signal-like))')
-plt.hist(MM_vec.M[~cut_chi2pid], bins = 30, range = (0.85, 1.15), color = 'green', alpha = 0.5, label='Below cuts (background-like)')
 
+plt.hist(MM_vec.M, bins = 30, range = (0.85, 1.15), histtype = 'step', color = 'black')
+plt.hist(MM_vec.M[~cut_chi2pid], bins = 30, range = (0.85, 1.15), color = 'green', alpha = 0.5)
+plt.hist(MM_vec.M[cut_chi2pid], bins = 30, range = (0.85, 1.15), color = 'blue', alpha = 0.5)
 plt.xlabel('Missing Mass (GeV)')
 plt.ylabel('Counts')
-plt.title(r'MM with $\chi^2_{PID}$ cut(FT)')
-plt.legend()
+plt.title(r'MM with $\chi^2_{PID}(p_1, p_2, \pi^-, e)$ cut')
 plt.tight_layout()
-plt.savefig('FT_MM_Chi2PID.pdf')
+plt.savefig('MM_Chi2PID.pdf')
 plt.show()
 
 plt.figure()
 fit_dist(MM_vec.M[cut_chi2pid], params, bounds, bin_num, fit_range=(0.75, 1.25))
 plt.show()
 
-#%% cut on lab frame angle distribution of missing mass
-# use vec library to get theta
-mass_cut = (MM_vec.M >= 0.85) & (MM_vec.M<=1.15)
-p_nbar = vec.array({'px': MM_vec.px[mass_cut], "py": MM_vec.py[mass_cut], "pz": MM_vec.pz[mass_cut], "M": np.ones_like(MM_vec.px[mass_cut]) * mass_n})
-
-
-# %% This is a histogram of the antineutron theta angle that is calculated from four vector calculation
-# this calculation is done automatically thanks to the vector library
-plt.hist(np.rad2deg(p_nbar.theta), bins = 100)
-plt.xlabel(r'$\theta_{\bar{n}}$')
-plt.ylabel('Counts')
-plt.title('Lab Frame Angle Distribution of MM(FT)')
-plt.tight_layout()
-plt.savefig('FT_theta_anti_N.pdf')
-
 # %% this is the start of a delta time cut
-# This is the difference in value between the measure TOF - the expected TOF
 
 # plt.figure()
 # plt.hist2d(np.array(p_p1.mag), np.array(dt_p1), bins=(np.arange(0, 6, 0.05), np.arange(-5, 5, 0.05)), range=((0,6),(-5,5)), norm = mpl.colors.LogNorm())
 # plt.xlabel(r"$|P_{p1}|$(GeV)")
 # plt.ylabel(r"$\Delta t_{p1}$ (ns)")
 # plt.title(r'$\Delta t_{p1}$ vs $|P_{p1}|$')
-# plt.savefig('FT_dt_p1.pdf')
+# plt.savefig('dt_p1.pdf')
 # plt.show()
 
 
@@ -606,20 +638,20 @@ for name, p_mag, dt in zip(particles, momenta, dts):
     plt.figure()
     plt.hist2d(np.array(p_mag), np.array(dt),
                bins=(np.arange(0, 6, 0.05), np.arange(-5, 5, 0.05)), 
-               range=((0, 6), (-5, 5)), norm=mpl.colors.LogNorm(), cmap='inferno')
+               range=((0, 6), (-5, 5)), norm=mpl.colors.LogNorm())
     plt.xlabel(rf'$|P_{{{name}}}|$ (GeV)')
     plt.ylabel(rf'$\Delta t_{{{name}}}$ (ns)')
-    plt.title(rf'$\Delta t$ vs $|P_{{{name}}}|$(FT)')
+    plt.title(rf'$\Delta t$ vs $|P_{{{name}}}|$')
     # plt.colorbar(label='Counts')
     plt.tight_layout()
-    plt.savefig(f'FT_dt_{name}_vs_p_{name}.pdf')
+    plt.savefig(f'dt_{name}_vs_p_{name}.pdf')
     plt.show()
 
 dt_windows = {
-    'p1':  (-0.279, 0.357),
-    'p2':  (-0.289, 0.5),
-    'pim': (-0.2125, 0.408),
-    'e':   (-0.600, 0.925),
+    'p1':  (-2, 2),
+    'p2':  (-2, 2),
+    'pim': (-1.6, 1.25),
+    'e':   (-0.9, 1.35),
 }
 
 cuts_dt = {}
@@ -680,37 +712,41 @@ plt.title(r'MM with dt($p_{\pi^-}$) cut')
 
 cut_dt_pim = cuts_dt['e'] & cut_chi2pid
 plt.figure()
-plt.hist(MM_vec.M, bins=30, range=(0.85, 1.15), histtype='step', color='black', label='All events (No cuts)')
-plt.hist(MM_vec.M[~cut_dt_pim], bins=30, range=(0.85, 1.15), color='green', alpha=0.5, label='Below cuts (background-like)')
-plt.hist(MM_vec.M[cut_dt_pim], bins=30, range=(0.85, 1.15), color='blue', alpha=0.5, label='Above cuts(signal-like)')
+plt.hist(MM_vec.M, bins=30, range=(0.85, 1.15),
+         histtype='step', color='black', label='No PID cut')
+plt.hist(MM_vec.M[~cut_dt_pim], bins=30, range=(0.85, 1.15),
+         color='green', alpha=0.5)
+plt.hist(MM_vec.M[cut_dt_pim], bins=30, range=(0.85, 1.15),
+         color='blue', alpha=0.5)
 plt.xlabel(r'$\bar{n}$ missing mass (GeV)')
 plt.ylabel('Counts')
 plt.title(r'MM with dt($p_{\pi^-}$) cut')
 
 
 #%%
-plt.figure()
-plt.hist(MM_vec.M, bins = 30, range = (0.85, 1.15), histtype = 'step', color = 'black', label='All events (No cuts)')
-plt.hist(MM_vec.M[~cut_all], bins = 30, range = (0.85, 1.15), color = 'green', alpha = 0.5, label='Below cuts (background-like)')
-plt.hist(MM_vec.M[cut_all], bins = 30, range = (0.85, 1.15), color = 'orange', alpha = 0.5, label='Above cuts (signal-like))')
 
+plt.figure()
+plt.hist(MM_vec.M, bins = 30, range = (0.85, 1.15), histtype = 'step', color = 'black')
+plt.hist(MM_vec.M[~cut_all], bins = 30, range = (0.85, 1.15), color = 'green', alpha = 0.5)
+plt.hist(MM_vec.M[cut_all], bins = 30, range = (0.85, 1.15), color = 'blue', alpha = 0.5)
 plt.xlabel('Missing Mass (GeV)')
 plt.ylabel('Counts')
-plt.title(r'MM with $\Delta$t cuts(FT)')
-plt.legend()
+plt.title(r'MM with $\Delta$t cuts')
 plt.tight_layout()
-plt.savefig('FT_MM_dt.pdf')
+# plt.savefig('.pdf')
 plt.show()
 
 
 #%% MM distro with all cuts applied!!!
+
 plt.figure()
 fit_dist(MM_vec.M[cut_all], params, bounds, bin_num, fit_range=(0.75, 1.25))
-# plt.title(r'Fitted MM spectrum After Cuts $(W,|P|,\chi^2_{PID},\Delta t)$(FT)')
+# plt.title(r'Fitted MM spectrum After Cuts $(W,|P|,\chi^2_{PID},\Delta t)$')
 plt.tight_layout()
-plt.savefig('FT_MM_all_cuts_fit.pdf')
+plt.savefig('MM_all_cuts_fit.pdf')
+plt.title(r'MM with all cuts($W,|P|,\chi^2_{PID},\Delta t$, mass cut)')
+plt.tight_layout()
 plt.show()
-
 
 
 #%% Lab frame polar angle with all cuts
@@ -734,96 +770,222 @@ n_bar_all = vec.array({
     'M': np.ones_like(MM_vec.px[n_bar_cuts])*mass_n
 })
 
+phi_mass  = np.rad2deg(p_nbar.phi)       # [-180, 180]
+phi_all   = np.rad2deg(n_bar_all.phi)
+
+
+# polar angle here
 plt.figure()
-plt.hist(np.rad2deg(p_nbar.theta), bins = 100, color='orange', label=r'Mass Cut ($0.85, 1.15$)GeV')
-plt.hist(np.rad2deg(n_bar_all.theta), bins=100, color='green', label=r'All cuts($W,|P|,\chi^2_{PID},\Delta t$, mass cut)')
+plt.hist(np.rad2deg(p_nbar.theta), bins = 100, label=r'Mass Cut ($0.85, 1.15$)GeV')
+plt.hist(np.rad2deg(n_bar_all.theta), bins=100, color='red', label=r'All cuts($W,|P|,\chi^2_{PID},\Delta t$, mass cut)')
 plt.xlabel(r'$\theta_{\bar{n}}$ (deg)')
 plt.ylabel('Counts')
-plt.title(r'Lab-frame polar angle of $\bar{n}$ candidate (FD)')
+plt.title(r'Lab-frame polar angle of $\bar{n}$ candidate(FD)')
 plt.legend()
 plt.tight_layout()
-plt.savefig('FT_theta_anti_N.pdf')
+plt.savefig('theta_anti_N.pdf')
 plt.show()
+
+# Map to [0, 360)
+phi_mass  = (phi_mass + 360) % 360
+phi_all   = (phi_all + 360) % 360
+
+theta_all = np.rad2deg(n_bar_all.theta)
+theta_mass = np.rad2deg(p_nbar.theta)
+
+# Optional: restrict to FD ECAL polar acceptance
+theta_mass = np.rad2deg(p_nbar.theta)
+theta_all  = np.rad2deg(n_bar_all.theta)
+theta_min, theta_max = 5.0, 35.0
+acc_mass = (theta_mass > theta_min) & (theta_mass < theta_max)
+acc_all  = (theta_all  > theta_min) & (theta_all  < theta_max)
+
+phi_mass_acc = phi_mass[acc_mass]
+phi_all_acc  = phi_all[acc_all]
+
+
+plt.figure()
+plt.hist(phi_mass_acc, bins=72, range=(0, 360),
+         histtype='step',
+         label=r'Mass cut, $5^\circ < \theta_{\bar{n}}^{\mathrm{lab}} < 35^\circ$')
+plt.hist(phi_all_acc, bins=72, range=(0, 360),
+         color='red', alpha=0.5,
+         label=r'All cuts in FD ECAL $\theta$ range')
+plt.xlabel(r'$\phi_{\bar{n}}^{\mathrm{lab}}$ (deg)')
+plt.ylabel('Counts')
+plt.title(r'Lab-frame azimuthal angle of $\bar{n}$ candidate (FD)')
+plt.legend()
+plt.tight_layout()
+plt.savefig('FD_phi_antiN.pdf')
+plt.show()
+
+
+
+plt.figure()
+plt.hist(phi_mass_acc, bins=72, range=(0, 360),
+         histtype='step',
+         label=r'Mass cut, $5^\circ < \theta_{\bar{n}}^{\mathrm{lab}} < 35^\circ$')
+plt.hist(phi_all_acc, bins=72, range=(0, 360),
+         color='red', alpha=0.5,
+         label=r'All cuts in FD ECAL $\theta$ range')
+
+# Sector boundaries every 60°
+for phi_edge in np.arange(0, 360, 60):
+    plt.axvline(phi_edge, color='k', linestyle='--', linewidth=1, alpha=0.6)
+
+# Optional: sector centers at 30°, 90°, ..., 330°
+for phi_center in np.arange(30, 360, 60):
+    plt.axvline(phi_center, color='k', linestyle=':', linewidth=1, alpha=0.4)
+
+plt.xlabel(r'$\phi_{\bar{n}}^{\mathrm{lab}}$ (deg)')
+plt.ylabel('Counts')
+plt.title(r'Lab-frame azimuthal angle of $\bar{n}$ candidate (FD)')
+plt.legend()
+plt.tight_layout()
+plt.savefig('FD_phi_antiN.pdf')
+plt.show()
+
+
+theta_deg = np.rad2deg(n_bar_all.theta)
+phi_deg   = np.rad2deg(n_bar_all.phi)
+phi_deg   = (phi_deg + 360) % 360
+
+plt.figure()
+plt.hist2d(phi_deg, theta_deg,
+           bins=(72, 60),   # 5° in phi, ~0.5° in theta
+           range=((0, 360), (0, 40)))
+plt.xlabel(r'$\phi_{\bar{n}}^{\mathrm{lab}}$ (deg)')
+plt.ylabel(r'$\theta_{\bar{n}}^{\mathrm{lab}}$ (deg)')
+plt.title(r'$ (\theta,\phi)_{\bar{n}}^{\mathrm{lab}}$ after all cuts (FD)')
+cbar = plt.colorbar()
+cbar.set_label('Counts per bin')
+plt.tight_layout()
+# plt.savefig('FD_theta_phi_nbar_2D.pdf')
+plt.show()
+
+#%% Energy spectrum of nbar candidates (FD)
+
+# Energy from the vector library (GeV)
+E_nbar_mass = p_nbar.E          # mass window only
+E_nbar_all  = n_bar_all.E       # mass window + all cuts
+
+plt.figure()
+plt.hist(E_nbar_mass, bins=100, range=(0, 10),
+         histtype='step',
+         label=r'Mass cut ($0.85 < M_{\mathrm{miss}} < 1.15$ GeV)')
+plt.hist(E_nbar_all, bins=100, range=(0, 10),
+         color='red', alpha=0.5,
+         label=r'All cuts ($W,|P|,\chi^2_{\mathrm{PID}},\Delta t$, mass cut)')
+plt.xlabel(r'$E_{\bar{n}}^{\mathrm{lab}}$ (GeV)')
+plt.ylabel('Counts')
+plt.title(r'Lab-frame energy of $\bar{n}$ candidate (FD)')
+plt.legend()
+plt.tight_layout()
+plt.savefig('FD_Enbar_spectrum.pdf')
+plt.show()
+
+#%%
+theta_nbar_all = np.rad2deg(n_bar_all.theta)
+phi_nbar_all   = (np.rad2deg(n_bar_all.phi) + 360) % 360
+E_nbar_all     = n_bar_all.E
+
+# E vs theta
+plt.figure()
+plt.hist2d(theta_nbar_all, E_nbar_all,
+           bins=(60, 60), range=((0, 40), (0, 10)))
+plt.xlabel(r'$\theta_{\bar{n}}^{\mathrm{lab}}$ (deg)')
+plt.ylabel(r'$E_{\bar{n}}^{\mathrm{lab}}$ (GeV)')
+plt.title(r'$E_{\bar{n}}^{\mathrm{lab}}$ vs $\theta_{\bar{n}}^{\mathrm{lab}}$ (FD)')
+cbar = plt.colorbar()
+cbar.set_label('Counts per bin')
+plt.tight_layout()
+plt.savefig('FD_Enbar_vs_theta.pdf')
+plt.show()
+
+# E vs phi (in ECAL theta range, if you want)
+
+
+#%% Energy spectrum of nbar with 5° < theta < 20° (FD)
+
+# Lab polar angle in degrees
+theta_nbar_all = np.rad2deg(n_bar_all.theta)
+
+# Polar-angle cut: 5° < theta < 20°
+theta_min, theta_max = 5.0, 20.0
+theta_cut = (theta_nbar_all > theta_min) & (theta_nbar_all < theta_max)
+
+# Apply only the theta cut; keep all phi
+E_nbar_theta = n_bar_all.E[theta_cut]  # GeV
+
+plt.figure()
+plt.hist(E_nbar_theta, bins=100, range=(0, 10),
+         histtype='stepfilled', alpha=0.6)
+plt.xlabel(r'$E_{\bar{n}}^{\mathrm{lab}}$ (GeV)')
+plt.ylabel('Counts')
+plt.title(r'$E_{\bar{n}}^{\mathrm{lab}}$ for $5^\circ < \theta_{\bar{n}}^{\mathrm{lab}} < 20^\circ$ (FD)')
+plt.tight_layout()
+plt.savefig('FD_Enbar_theta5to20.pdf')
+plt.show()
+
+# ---------------------------
+#%%
+# Using n_bar_all (all analysis cuts + mass cut)
+theta_nbar = np.rad2deg(n_bar_all.theta)
+phi_nbar   = (np.rad2deg(n_bar_all.phi) + 360) % 360
+E_nbar     = n_bar_all.E
+
+# Apply your theta window 5°–20° if you want to stay in that band
+theta_min, theta_max = 5.0, 20.0
+theta_mask = (theta_nbar > theta_min) & (theta_nbar < theta_max)
+
+theta_sel = theta_nbar[theta_mask]
+phi_sel   = phi_nbar[theta_mask]
+E_sel     = E_nbar[theta_mask]
+
+# 2D: E vs theta
+plt.figure()
+plt.hist2d(theta_sel, E_sel,
+           bins=(60, 60),  # adjust as needed
+           range=((0, 40), (0, 10)))
+plt.xlabel(r'$\theta_{\bar{n}}^{\mathrm{lab}}$ (deg)')
+plt.ylabel(r'$E_{\bar{n}}^{\mathrm{lab}}$ (GeV)')
+plt.title(r'$E_{\bar{n}}^{\mathrm{lab}}$ vs $\theta_{\bar{n}}^{\mathrm{lab}}$ (FD)')
+cbar = plt.colorbar()
+cbar.set_label('Counts per bin')
+plt.tight_layout()
+# plt.savefig('FD_Enbar_vs_theta.pdf')
+plt.show()
+
+# 2D: E vs phi (within 5°–20°)
+plt.figure()
+plt.hist2d(phi_sel, E_sel,
+           bins=(72, 60),
+           range=((0, 360), (0, 10)))
+plt.xlabel(r'$\phi_{\bar{n}}^{\mathrm{lab}}$ (deg)')
+plt.ylabel(r'$E_{\bar{n}}^{\mathrm{lab}}$ (GeV)')
+plt.title(r'$E_{\bar{n}}^{\mathrm{lab}}$ vs $\phi_{\bar{n}}^{\mathrm{lab}}$ (FD, $5^\circ<\theta<20^\circ$)')
+cbar = plt.colorbar()
+cbar.set_label('Counts per bin')
+plt.tight_layout()
+# plt.savefig('FD_Enbar_vs_phi.pdf')
+plt.show()
+
+
+#%%
 
 # now the azimuthal angle distribution of the antineutron
-plt.figure()
-plt.hist(np.rad2deg(p_nbar.phi), bins = 100, color='orange', label=r'Mass Cut ($0.85, 1.15$)GeV')
-plt.hist(np.rad2deg(n_bar_all.phi), bins=100, color='green', label=r'All cuts($W,|P|,\chi^2_{PID},\Delta t$, mass cut)')
-plt.xlabel(r'$\phi_{\bar{n}}$ (deg)')
-plt.ylabel('Counts')
-plt.title(r'Lab-frame Azimuthal angle of $\bar{n}$ candidate (FT)')
-plt.legend()
-plt.tight_layout()
-plt.savefig('FT_phi_anti_N.pdf')
-plt.show()
-
 # plt.figure()
-# plt.hist2d(np.rad2deg(p_e.theta[cut_all & mass_cut]),
-#            np.rad2deg(n_bar_all.theta),
-#            bins=(50, 50), range=((2, 35), (0, 40)), norm='log')
-# plt.xlabel(r'$\theta_{e^\prime}$ (deg)')
-# plt.ylabel(r'$\theta_{\bar{n}}$ (deg)')
-# plt.title(r'$\theta_{\bar{n}}$ vs $\theta_{e^\prime}$ (all cuts)')
-# cbar = plt.colorbar()
-# cbar.set_label('Counts per bin')
+# plt.hist(np.rad2deg(p_nbar.phi), bins = 100, label=r'Mass Cut ($0.85, 1.15$)GeV')
+# plt.hist(np.rad2deg(n_bar_all.phi), bins=100, color='red', label=r'All cuts($W,|P|,\chi^2_{PID},\Delta t$, mass cut)')
+# plt.xlabel(r'$\phi_{\bar{n}}$ (deg)')
+# plt.ylabel('Counts')
+# plt.title(r'Lab-frame Azimuthal angle of $\bar{n}$ candidate (FD)')
+# plt.legend()
 # plt.tight_layout()
-# # plt.savefig('theta_nbar_vs_theta_e.pdf')
+# plt.savefig('phi_anti_N.pdf')
 # plt.show()
 
-#%%
-# 1) Choose momentum bins.
-# 2) For each bin, select events in that momentum range.
-# 3) Plot (and optionally fit) the 1D MM distribution for that slice.
-
-
-
-###Defining momentum mag and delta time for pip
-# wmask = (W > (W_thry + 0.39)) & (data.MM > 0) & (data.MM < 3)
-# p3_pip, dt_pip = np.array(data['P_mag_pip'])[wmask], np.array(data['deltaTime_pip'])[wmask]
 
 
 #%%
-
-fig, ax = plt.subplots()
-h_MM_cut = Histo(MM_vec.M[cut_all], bins = 25, range = (0.65, 1.25), color ='white', ax =ax)
-h_MM_cut.plot_exp(fmt = '.', color = 'black', ax = ax)
-
-params = [500, mass_n, 0.01, 1, 1, 1, 1, 1]
-bounds = ((0, 0.85, 0, -np.inf, -np.inf, -np.inf, -np.inf, -np.inf), 
-          (1000, 1, 0.1, np.inf, np.inf, np.inf, np.inf, np.inf))
-
-
-fit_MM_cut = Fit(tools.lorentz_poly4_fit, params, bounds, histo = h_MM_cut, signal = tools.lorentz_fit, background = tools.poly4_fit, bins = 25, range = (0.65, 1.25))
-# %%
 plt.close('all')
-
-#%%
-import numpy as np
-
-# 1. Missing Momentum Vector (1 per event)
-p_nbar3 = vec.awk(ak.zip({
-    'px': MM_vec.px[cut_mag],
-    'py': MM_vec.py[cut_mag],
-    'pz': MM_vec.pz[cut_mag]
-}))
-
-# 2. Calorimeter Hit Vectors (Jagged)
-p_nonprim = vec.awk(ak.zip({
-    'x': t.data['nonprim_x'][cut_mag],
-    'y': t.data['nonprim_y'][cut_mag],
-    'z': t.data['nonprim_z'][cut_mag]
-}))
-
-# 3. Calculate the angle with BROADCASTING
-# Adding [:, None] makes p_nbar3 compatible with the jagged hits
-angles_rad = p_nbar3[:, None].deltaangle(p_nonprim)
-
-# 4. Result is jagged; take the minimum angle per event
-angles_deg = angles_rad * (180.0 / np.pi)
-best_angles = ak.min(angles_deg, axis=-1) # axis=-1 looks at the hits within the event
-# Returns the index (0, 1, 2...) of the smallest angle in each event
-# keepdims=True keeps the structure so we can use it to 'select' from other arrays
-best_idx = ak.argmin(angles_deg, axis=-1, keepdims=True)
-# %%
-Histo(t.data['nonprim_E'][cut_mag][best_idx], bins=100, range=(0, 5))
-# %%

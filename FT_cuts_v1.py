@@ -1,7 +1,16 @@
 #Created on January 3 2026 01:14
 #Author: Kevin Arias
-#%%
+
 # importing libraries
+#%%
+%matplotlib qt
+import uproot
+import numpy as np
+import matplotlib.pyplot as plt
+import vector as vec
+import scipy as sp
+import matplotlib as mpl
+from upkit import Histo, Histo2D, RootAnalysis, Fit, tools
 
 # constants
 mass_p = 0.938272088  # GeV/c^2 for proton
@@ -36,37 +45,66 @@ def expo_poly4(x, A ,B, a, b, c, d, e):
 
 # no idea who named these branches/trees
 #%%
-%matplotlib qt
-import uproot
-import numpy as np
-import awkward as ak
-import matplotlib.pyplot as plt
-from upkit import Histo, Histo2D, RootAnalysis
-from upkit.hists import *
-import vector as vec
+# Open the ROOT file and load the tree/data table which can hold different types of data
+file = uproot.open('Pppim_eFT_all.root')
+tree = file['Individual'] # I did not name this tree, I assumed it means data from individual events not binned or summed
 
-set_plot_style()
-t = RootAnalysis("kev_Pppim_eFT_all.root", 'Individual')
+# making arrays of momentum information for electron, pi minus, and both protons from called tree
+# this is the scattered electron not the e_beam
+px_e = tree['px_e'].array()
+py_e = tree['py_e'].array()
+pz_e = tree['pz_e'].array()
 
-branches = ["miss_mass", "Enbar_calo", 'px_p1', 'py_p1', 'pz_p1', 'px_p2', 'py_p2', 'pz_p2', 'px_e', 'py_e', 'pz_e', 'px_pim', 'py_pim', 'pz_pim', 'nonprim_x', 'nonprim_y', 'nonprim_z', 'nonprim_E']
-t.load_branches(branches)
+px_p1 = tree['px_p1'].array()
+py_p1 = tree['py_p1'].array()
+pz_p1 = tree['pz_p1'].array()
+
+px_p2 = tree['px_p2'].array()
+py_p2 = tree['py_p2'].array()
+pz_p2 = tree['pz_p2'].array()
+
+px_pim = tree['px_pim'].array()
+py_pim = tree['py_pim'].array()
+pz_pim = tree['pz_pim'].array()
+
+def p_mag(x, y , z):
+    return np.sqrt(x**2 + y**2 + z**2)
+# magnitude calculations for later (GeV/c)
+e_mag = p_mag(px_e, py_e, pz_e) 
+p1_mag = p_mag(px_p1, py_p1, pz_p1)
+p2_mag = p_mag(px_p2, py_p2, pz_p2)
+pim_mag = p_mag(px_pim, py_pim, pz_pim)
+
+# 32,911,203 data points each??
+
+# extracting delta time information 
+dt_e = tree['deltaTime_e'].array()
+dt_p1 = tree['deltaTime_p1'].array()
+dt_p2 = tree['deltaTime_p2'].array()
+dt_pim = tree['deltaTime_pim'].array()
+
+# extracting chi2pid information
+e_chi2pid = tree['chi2pid_e'].array()
+p1_chi2pid = tree['chi2pid_p1'].array()
+p2_chi2pid = tree['chi2pid_p2'].array()
+pim_chi2pid = tree['chi2pid_pim'].array()
+#%% Definning 4 momenta
+p_beam = vec.obj(px = 0, py = 0, pz = 10.2, E = 10.2)
+p_target = vec.obj(px = 0, py = 0, pz = 0, M = 0.938272088)
+
+p_e = vec.array({'px': px_e, "py": py_e, "pz": pz_e, "M": np.ones_like(px_e) * mass_e})
+p_p1 = vec.array({'px': px_p1, "py": py_p1, "pz": pz_p1, "M": np.ones_like(px_p1) * mass_p})
+p_p2 = vec.array({'px': px_p2, "py": py_p2, "pz": pz_p2, "M": np.ones_like(px_p2) * mass_p})
+p_pim = vec.array({'px': px_pim, "py": py_pim, "pz": pz_pim, "M": np.ones_like(px_pim) * mass_pim})
 
 
-p_p1 = vec.array({"px": t.data["px_p1"], "py": t.data["py_p1"], "pz": t.data["pz_p1"], "M": np.ones_like(t.data["px_p1"]) * 0.938})
-p_p2 = vec.array({"px": t.data["px_p2"], "py": t.data["py_p2"], "pz": t.data["pz_p2"], "M": np.ones_like(t.data["px_p2"]) * 0.938})
-p_e  = vec.array({"px": t.data["px_e"], "py": t.data["py_e"], "pz": t.data["pz_e"], "M": np.ones_like(t.data["px_e"]) * 0.000511})
-p_pim = vec.array({"px": t.data["px_pim"], "py": t.data["py_pim"], "pz": t.data["pz_pim"], "M": np.ones_like(t.data["px_pim"]) * 0.13957})
-
-p_beam = vec.obj(px=0, py=0, pz=10.6, M=0.000511)
-p_target = vec.obj(px=0, py=0, pz=0, M=0.938)
-p_miss = p_beam + p_target - p_e - p_p1 - p_p2 - p_pim
 #%% missing mass distribution
 
 # MM2 = E_mm**2 - (px_mm**2 + py_mm**2 + pz_mm**2)
 MM_vec = p_beam + p_target - p_e - p_p1 - p_p2 - p_pim
 
 plt.figure()
-plt.hist(np.array(MM_vec.M), bins=20, range=(0.01, 2.5), histtype='step', color='black')
+plt.hist(np.array(MM_vec.M), bins=200, range=(0.01, 2.5), histtype='step', color='black')
 plt.axvline(mass_n, linestyle='--', label=f'Antineutron {mass_n}GeV' )
 plt.legend()
 plt.xlabel(r'$\bar{n}$ Missing Mass(GeV)')
@@ -212,7 +250,7 @@ plt.savefig('FT_MM_no_cuts_fit.pdf')
 p_W = p_beam + p_target - p_e
 m_hadrons = 2*mass_p + mass_pim + mass_n
 # another way could just be the sum of the final state hadrons (p' + p + pi + n)
-#%%
+
 plt.figure()
 plt.hist(p_W.M, bins=100, range = (0, 5), histtype='step', color='k')
 plt.axvline(m_hadrons, color = 'red', label=r'$2m_p + m_{\pi} + m_n$')
@@ -222,7 +260,7 @@ plt.ylabel('Counts')
 plt.title('Hadronic Invariant Mass Spectrum (FT)')
 plt.tight_layout()
 plt.savefig('FT_W_no_cuts.pdf')
-# plt.show()
+plt.show()
 
 
 
@@ -231,7 +269,7 @@ plt.savefig('FT_W_no_cuts.pdf')
 
 # cut_W = p_W.M > (2*mass_p + mass_pim + mass_n) = 2.9____
 cut_W = (p_W.M > 3.426)  # you want a little more room
-#%%
+
 plt.figure()
 plt.hist2d(np.array(p_W.M), np.array(MM_vec.M), bins = 1000, range = ((0, 5), (0, 2.5)), norm = 'log', cmap='inferno')
 plt.axvline(3.426, linestyle='--', color='red')
@@ -246,7 +284,7 @@ plt.text(
 
 plt.tight_layout()
 plt.savefig('FT_MM_vs_W.pdf')
-# plt.show()
+plt.show()
 
 # Now with cut
 plt.figure()
@@ -266,20 +304,20 @@ plt.text(
 )
 plt.tight_layout()
 plt.savefig('FT_MM_vs_W_threshold_cut.pdf')
-# plt.show()
+plt.show()
 
 
 # %% Missing Mass plot showing threshold cut
 
 plt.figure()
 # total (background + signal)
-plt.hist(MM_vec.M, bins = 10, range = (0.85, 1.15), histtype = 'step', color = 'black', label='All events (No cuts)')
+plt.hist(MM_vec.M, bins = 20, range = (0.85, 1.15), histtype = 'step', color = 'black', label='All events (No cuts)')
 
 # signal with cut --> [cut_W]
-plt.hist(MM_vec.M[cut_W], bins = 10, range = (0.85, 1.15), color = 'orange', alpha = 0.5, label='Above threshold cut(signal-like))')
+plt.hist(MM_vec.M[cut_W], bins = 20, range = (0.85, 1.15), color = 'orange', alpha = 0.5, label='Above threshold cut(signal-like))')
 
 # background with cut
-plt.hist(MM_vec.M[~cut_W], bins = 10, range = (0.85, 1.15), color = 'green', alpha = 0.5, label='Below threshold cut (background-like)')
+plt.hist(MM_vec.M[~cut_W], bins = 20, range = (0.85, 1.15), color = 'green', alpha = 0.5, label='Below threshold cut (background-like)')
 
 
 plt.legend()
@@ -379,7 +417,7 @@ plt.show()
 cut_mag = cut_W & (p_p1.mag > 1.3520) & (p_pim.mag > 0.2531 ) & (p_e.mag > 0.2800) & (p_p2.mag > 0.8133)
 # to get these numbers, I went into spyder where the cursor was mapped on the plot,
 # so I hovered over the x value I wanted for each edge if the "antineutron line"
-#%%
+
 
 # this one will not work because there is no "math operator for it"
 # cut_mag = cut_W & (1.771 < p_p1.mag < 4.831) & (0.217 < p_pim.mag < 2.232) & (0.911 < p_e.mag < 3.363) & (1.771 < p_p2.mag < 4.831) 
@@ -490,14 +528,14 @@ for name, chi2 in pids.items():
     cuts_chi[name] = (chi2 >= lo) & (chi2 <= hi)
 #%% p1 separated MM with chi2pid cut
 
-# cut_chi2_p1 = cuts_chi['p1'] & cut_mag  
-cut_chi2_p1 = cut_mag  
+cut_chi2_p1 = cuts_chi['p1'] & cut_mag  
+
 plt.figure()
-plt.hist(MM_vec.M, bins=10, range=(0.85, 1.15),
+plt.hist(MM_vec.M, bins=30, range=(0.85, 1.15),
          histtype='step', color='black', label='No PID cut')
-plt.hist(MM_vec.M[~cut_chi2_p1], bins=10, range=(0.85, 1.15),
+plt.hist(MM_vec.M[~cut_chi2_p1], bins=30, range=(0.85, 1.15),
          color='green', alpha=0.5, label=r'Fail $\chi^2_{\mathrm{PID}}(p1)$')
-plt.hist(MM_vec.M[cut_chi2_p1], bins=10, range=(0.85, 1.15),
+plt.hist(MM_vec.M[cut_chi2_p1], bins=30, range=(0.85, 1.15),
          color='blue', alpha=0.5, label=r'Pass $\chi^2_{\mathrm{PID}}(p1)$')
 plt.xlabel(r'$\bar{n}$ missing mass (GeV)')
 plt.ylabel('Counts')
@@ -796,34 +834,3 @@ bounds = ((0, 0.85, 0, -np.inf, -np.inf, -np.inf, -np.inf, -np.inf),
 fit_MM_cut = Fit(tools.lorentz_poly4_fit, params, bounds, histo = h_MM_cut, signal = tools.lorentz_fit, background = tools.poly4_fit, bins = 25, range = (0.65, 1.25))
 # %%
 plt.close('all')
-
-#%%
-import numpy as np
-
-# 1. Missing Momentum Vector (1 per event)
-p_nbar3 = vec.awk(ak.zip({
-    'px': MM_vec.px[cut_mag],
-    'py': MM_vec.py[cut_mag],
-    'pz': MM_vec.pz[cut_mag]
-}))
-
-# 2. Calorimeter Hit Vectors (Jagged)
-p_nonprim = vec.awk(ak.zip({
-    'x': t.data['nonprim_x'][cut_mag],
-    'y': t.data['nonprim_y'][cut_mag],
-    'z': t.data['nonprim_z'][cut_mag]
-}))
-
-# 3. Calculate the angle with BROADCASTING
-# Adding [:, None] makes p_nbar3 compatible with the jagged hits
-angles_rad = p_nbar3[:, None].deltaangle(p_nonprim)
-
-# 4. Result is jagged; take the minimum angle per event
-angles_deg = angles_rad * (180.0 / np.pi)
-best_angles = ak.min(angles_deg, axis=-1) # axis=-1 looks at the hits within the event
-# Returns the index (0, 1, 2...) of the smallest angle in each event
-# keepdims=True keeps the structure so we can use it to 'select' from other arrays
-best_idx = ak.argmin(angles_deg, axis=-1, keepdims=True)
-# %%
-Histo(t.data['nonprim_E'][cut_mag][best_idx], bins=100, range=(0, 5))
-# %%

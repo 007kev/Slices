@@ -129,7 +129,7 @@ void hipo_root_pppim()
     auto  config_c12 = chain.GetC12Reader();
     auto &c12        = chain.C12ref();
 
-    chain.Add("/lustre24/expphy/volatile/clas12/leomart/Data/Runs/Spring2019/FT_merged/Pp_eFT_006667.hipo");
+    chain.Add("/lustre24/expphy/volatile/clas12/leomart/Data/Runs/Spring2019/FT_merged/Pp_eFT_all.hipo");
 
     Double_t pp_inv_mass, miss_mass, miss_mass_sq;
     TLorentzVector p_electron_cor;
