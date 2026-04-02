@@ -1,9 +1,23 @@
 # Slices
-My undergraduate research project on antineutron electroproduction
+My undergraduate research project analyzing antineutron electroproduction using data from the CLAS12 detector at Jefferson Lab
 
-Slices contain different analysis mainly using python; 'FD_cuts_v1.y' and 'FT_cuts_v1.py'
+# Physics Analysis (Python)
 
-The 'v2_hipo_root_pppim.C' file is a macro to convert from '.hipo' files from jefferson lab to '.ROOT' files
+These scripts contain the main physics analysis, kinematic matching algorithms, and data visualizations:
+
+- `FD_cuts_v1.py`: Analysis and momentum cuts focusing on electrons detected in the Forward Detector.
+
+- `FT_cuts_v1.py`: Analysis and momentum cuts focusing on electrons detected in the Forward Tagger.
+
+
+# Data Conversion (C++ / ROOT)
+
+These files handle the low-level processing of the raw detector data:
+
+- `v2_hipo_root_pppim.C`: A C++ ROOT macro used to filter and convert the raw Jefferson Lab .hipo data files into manageable .root trees for analysis.
+
+- `hipo_to_root_annotate.ipynb`: An annotated Jupyter Notebook breaking down the C++ conversion macro line-by-line. (Highly recommended for beginners!)
+
 
 # Features
 - Instructions for;
