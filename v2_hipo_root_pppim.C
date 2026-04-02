@@ -6,6 +6,7 @@
 #include <TCanvas.h>
 #include <TBenchmark.h>
 #include <iostream>
+#include <vector>
 
 #include "clas12reader.h"
 #include "HipoChain.h"
@@ -142,6 +143,10 @@ void v2_hipo_root_pppim()
 	float neutral_angle = -999.0f;
     int   has_neutral = 0;
 
+    // ---> NEW: Dynamic lists for all orphaned hits
+    std::vector<float> orphan_E;
+    std::vector<float> orphan_angle;
+
 	float e_status_val = 0;
 
     TFile *file       = new TFile("v2_kev_Pppim_eFT_all.root", "RECREATE");
@@ -170,11 +175,19 @@ void v2_hipo_root_pppim()
 	tree_indiv->Branch("neutral_angle", &neutral_angle, "neutral_angle/F");
     tree_indiv->Branch("has_neutral", &has_neutral, "has_neutral/I");
 
+    // ---> NEW: Create branches for the dynamic lists
+    tree_indiv->Branch("orphan_E", &orphan_E);
+    tree_indiv->Branch("orphan_angle", &orphan_angle);
+
     while (chain.Next()) {
+
+        // ---> NEW: Empty the lists for the new event
+        orphan_E.clear();
+        orphan_angle.clear();
 
         c12->event()->getStartTime();
 
-        n_total++;  // every event
+        n_total++;  // +1 every event
 
         p_electron.SetXYZM(0, 0, 0, mass_e);
         p_proton1.SetXYZM (0, 0, 0, mass_p);
@@ -189,10 +202,6 @@ void v2_hipo_root_pppim()
         auto protons   = c12->getByID(2212);
         auto piminus   = c12->getByID(-211);
 
-        // if (electrons.size() < 1) continue;
-        // if (protons.size()   < 2) continue;
-        // if (piminus.size()   < 1) continue;
-
 		// --- 1. Basic Topology Check ---
         if (electrons.size() < 1 || protons.size() < 2 || piminus.size() < 1) continue;
 
@@ -205,7 +214,6 @@ void v2_hipo_root_pppim()
         // std::abs() is a safe way to check the magnitude
         bool is_valid_electron = (std::abs(e_status) >= 1000 && std::abs(e_status) < 4000);
 
-        // if (electrons[0]->getStatus() < 0) {
 		if (is_valid_electron) {
             if (protons.size() == 2 && piminus.size() == 1) {
 
@@ -217,8 +225,6 @@ void v2_hipo_root_pppim()
                 SetLorentzVector(p_pim,      piminus[0]);
 				
 				e_status_val = (float)electrons[0]->getStatus();
-
-                // p_electron_cor = CorrectElectron(p_electron);
 
 				// --- 3. THE MOMENTUM CORRECTION CHANGE ---
                 TLorentzVector p_electron_final;
@@ -243,11 +249,12 @@ void v2_hipo_root_pppim()
                 int ip2 = protons[1]->getIndex();
                 int ipi = piminus[0]->getIndex();
 
-                // Ecal_e  = Pcal_e  = 0.0f;
-                // Ecal_p1 = Ecal_p2 = 0.0f;
-                // Ecal_pim = 0.0f;
-                // Enbar_calo  = 0.0f;
-                // has_neutral = 0;
+                Ecal_e  = Pcal_e  = 0.0f;
+                Ecal_p1 = Ecal_p2 = 0.0f;
+                Ecal_pim = 0.0f;
+                Enbar_calo  = 0.0f;
+                neutral_angle = -999.0f;
+                has_neutral = 0;
 
 				Enbar_calo = 0.0f;
 				neutral_angle = -999.0f;
@@ -285,6 +292,10 @@ void v2_hipo_root_pppim()
                         TVector3 r_hit(x, y, z);
                         double angle = r_hit.Angle(p_miss);
 
+                          // ---> NEW: Add EVERY orphaned hit to your lists
+                        orphan_E.push_back(Ehit);
+                        orphan_angle.push_back((float)angle);
+
                         if (angle < best_angle) {
                             best_angle  = angle;
                             Enbar_calo  = Ehit;
@@ -297,18 +308,18 @@ void v2_hipo_root_pppim()
 
                 if (has_neutral == 1) {
                     n_has_neutral++;
+
+                    getParticle(electronInfo, electrons[0]);
+                    getParticle(proton1Info,  protons[0]);
+                    getParticle(proton2Info,  protons[1]);
+                    getParticle(piminusInfo,  piminus[0]);
+
+                    n_filled_tree++;
+                    tree_indiv->Fill();
                 }
-
-                getParticle(electronInfo, electrons[0]);
-                getParticle(proton1Info,  protons[0]);
-                getParticle(proton2Info,  protons[1]);
-                getParticle(piminusInfo,  piminus[0]);
-
-                n_filled_tree++;
-                tree_indiv->Fill();
             }
-        }
-    }
+        } // Closes the 'if' statements
+    } // Closes the main 'while (chain.Next())' loop
 
     std::cout << "Total events in HIPO:          " << n_total       << std::endl;
     std::cout << "Events with 1e2p1pi- topology: " << n_have_topo   << std::endl;
