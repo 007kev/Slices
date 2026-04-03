@@ -7,6 +7,8 @@
 #include <TBenchmark.h>
 #include <iostream>
 #include <vector>
+#include <cmath> // Required for std::acos and std::sqrt
+
 
 #include "clas12reader.h"
 #include "HipoChain.h"
@@ -103,6 +105,15 @@ void writeParticleInfoToTree(ParticleInfo &info, TTree *tree, const std::string 
 
 void v2_hipo_root_pppim()
 {
+
+    // ---> NEW: Start the stopwatch
+    gBenchmark->Start("conversion_timer");
+
+    auto db = TDatabasePDG::Instance();
+
+    // --- Event counters ---
+    Long64_t n_total        = 0;
+
     auto db = TDatabasePDG::Instance();
 
     // --- Event counters ---
@@ -141,11 +152,13 @@ void v2_hipo_root_pppim()
 
     float Enbar_calo  = 0.0f;
 	float neutral_angle = -999.0f;
+    float neutral_phi = -999.0f;
     int   has_neutral = 0;
 
     // ---> NEW: Dynamic lists for all orphaned hits
     std::vector<float> orphan_E;
     std::vector<float> orphan_angle;
+    std::vector<float> orphan_phi;
 
 	float e_status_val = 0;
 
@@ -174,10 +187,12 @@ void v2_hipo_root_pppim()
     tree_indiv->Branch("Enbar_calo",  &Enbar_calo,  "Enbar_calo/F");
 	tree_indiv->Branch("neutral_angle", &neutral_angle, "neutral_angle/F");
     tree_indiv->Branch("has_neutral", &has_neutral, "has_neutral/I");
+    tree_indiv->Branch("neutral_phi", &neutral_phi, "neutral_phi/F");
 
     // ---> NEW: Create branches for the dynamic lists
     tree_indiv->Branch("orphan_E", &orphan_E);
     tree_indiv->Branch("orphan_angle", &orphan_angle);
+    tree_indiv->Branch("orphan_phi", &orphan_phi);
 
     while (chain.Next()) {
 
@@ -258,6 +273,7 @@ void v2_hipo_root_pppim()
 
 				Enbar_calo = 0.0f;
 				neutral_angle = -999.0f;
+                neutral_phi = -999.0f;
 				has_neutral = 0;
 
                 TVector3 p_miss = MM.Vect();
@@ -287,20 +303,44 @@ void v2_hipo_root_pppim()
 					// Identify if this belongs to our primary 4 tracks
     				bool is_primary = (pindex == ie || pindex == ip1 || pindex == ip2 || pindex == ipi);
 
-
                     if (!is_primary) {
                         TVector3 r_hit(x, y, z);
-                        double angle = r_hit.Angle(p_miss);
+                        // double angle = r_hit.Angle(p_miss); // used to calculate the angle between the hit and the missing momentum vector
+                        // lets do it manually
+                        double dot_product = (r_hit.X() * p_miss.X()) + (r_hit.Y() * p_miss.Y()) + (r_hit.Z() * p_miss.Z());
+                        double mag_r_hit = std::sqrt( r_hit.X() * r_hit.X() + r_hit.Y() * r_hit.Y() +r_hit.Z() * r_hit.Z() );
+                        double mag_p_miss = std::sqrt( p_miss.X() * p_miss.X() + p_miss.Y() * p_miss.Y() + p_miss.Z() * p_miss.Z() );
 
-                          // ---> NEW: Add EVERY orphaned hit to your lists
-                        orphan_E.push_back(Ehit);
-                        orphan_angle.push_back((float)angle);
+                        // to protect against numbers outside of range of cosine that would produce Nan
+                        // I clamp it between -1 and 1
+                        double angle = 0.0;
+                        if (mag_r_hit > 0 && mag_p_miss > 0) {
+                            double ratio = dot_product / (mag_r_hit * mag_p_miss);
+                            if (ratio > 1.0) ratio = 1.0;
+                            if (ratio < -1.0) ratio = -1.0;
+                            angle = std::acos(ratio);
 
-                        if (angle < best_angle) {
-                            best_angle  = angle;
-                            Enbar_calo  = Ehit;
-							neutral_angle = (float)angle;
-                            has_neutral = 1;
+                            // now for azimuthal direction
+                            double hit_phi = std::atan2(r_hit.Y(), r_hit.X());
+                            double p_miss_phi = std::atan2(p_miss.Y(), p_miss.X());
+                            double delta_phi = hit_phi - p_miss_phi;
+                            
+                            // Wrap delta_phi to the range [-pi, pi]
+                            if (delta_phi > M_PI) delta_phi -= 2 * M_PI;
+                            if (delta_phi < -M_PI) delta_phi += 2 * M_PI;
+
+                            // ---> NEW: Add EVERY orphaned hit to your lists
+                            orphan_E.push_back(Ehit);
+                            orphan_angle.push_back((float)angle);
+                            orphan_phi.push_back((float)delta_phi); // store the relative phi angle to the missing momentum
+
+                            if (angle < best_angle) {
+                                best_angle  = angle;
+                                Enbar_calo  = Ehit;
+                                neutral_angle = (float)angle;
+                                neutral_phi = (float)delta_phi; // store the relative phi angle of the closest hit
+                                has_neutral = 1;
+                            }
                         }
                     }
                 }
@@ -329,4 +369,8 @@ void v2_hipo_root_pppim()
 
     tree_indiv->Write();
     file->Close();
+
+    // ---> NEW: Stop the stopwatch and print the elapsed time
+    std::cout << "\n--- Execution Time ---" << std::endl;
+    gBenchmark->Show("conversion_timer");
 }
