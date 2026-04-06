@@ -14,7 +14,7 @@ These scripts contain the main physics analysis, kinematic matching algorithms, 
 
 These files handle the low-level processing of the raw detector data:
 
-- `v2_hipo_root_pppim.C`: A C++ ROOT macro used to filter and convert the raw Jefferson Lab .hipo data files into manageable .root trees for analysis.
+- `v4_hipo_root_pppim.C`: A C++ ROOT macro used to filter and convert the raw Jefferson Lab .hipo data files into manageable .root trees for analysis.
 
 - `hipo_to_root_annotate.ipynb`: An annotated Jupyter Notebook breaking down the C++ conversion macro line-by-line. (Highly recommended for beginners!)
 
