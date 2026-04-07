@@ -9,7 +9,7 @@
 #include <vector>
 #include <cmath> // Required for std::acos and std::sqrt
 #include "clas12reader.h"
-#include "HipoChain.h"
+// #include "HipoChain.h"
 
 
 void SetLorentzVector(TLorentzVector &p4, clas12::region_part_ptr rp)
@@ -124,6 +124,8 @@ void v4_hipo_root_pppim()
         
     auto config_c12 = chain.GetC12Reader();
     auto& c12 = chain.C12ref();
+    c12->useFTBased();
+
     
     Double_t pp_inv_mass, miss_mass, miss_mass_sq;
     float e_status_val; // Branch variable to store the electron status
@@ -187,70 +189,74 @@ void v4_hipo_root_pppim()
 
         // 1. "At least" safety check to prevent crashes!
         // This explicitly requires AT LEAST 1 electron, 2 protons, and 1 pion.
-        if (electrons.size() < 1 || protons.size() < 2 || piminus.size() < 1) continue;
+        // if (electrons.size() < 1 || protons.size() < 2 || piminus.size() < 1) continue;
 
         // 2. The Combined Filter: Accept both FD (<0) and FT (1000-2000)
         int e_status = electrons[0]->getStatus();
         bool is_valid_electron = (e_status < 0 || (e_status >= 1000 && e_status < 2000));
 
-        if (is_valid_electron) {
-            
-            n_have_topo++; 
-            e_status_val = (float)e_status; // Save the status for Python
+        if (electrons[0]->getStatus() < 0) {
+			if ((protons.size() >= 2) && (piminus.size() >= 1)) {
+				// Set 4 vectors for first detected electron and first two protons //
+				SetLorentzVector(p_electron, electrons[0]);
+				SetLorentzVector(p_proton1, protons[0]);
+				SetLorentzVector(p_proton2, protons[1]);
+				SetLorentzVector(p_pim, piminus[0]);
+				
+				// p_electron_cor = CorrectElectron(p_electron);
 
-            SetLorentzVector(p_electron, electrons[0]);
-            SetLorentzVector(p_proton1, protons[0]);
-            SetLorentzVector(p_proton2, protons[1]);
-            SetLorentzVector(p_pim, piminus[0]);
-            
-            // 3. Conditional Momentum Correction
-            TLorentzVector p_electron_final;
-            if (e_status < 0) {
-                // It's in the Forward Detector, apply the correction
-                p_electron_final = CorrectElectron(p_electron);
-            } else {
-                // It's in the Forward Tagger, use raw momentum
-                p_electron_final = p_electron;
-            }
+				// Missing mass technique to find pbar //
+				TLorentzVector MM = beam + target - p_electron - p_proton1 - p_proton2 - p_pim;
+				miss_mass = MM.M();// Missing Mass
+				miss_mass_sq = MM.M2();// Missing Mass squared
+				pp_inv_mass = (p_proton1 + p_proton2).M();
 
-            // 4. Missing mass using the dynamically chosen electron vector
-            TLorentzVector MM = beam + target - p_electron_final - p_proton1 - p_proton2 - p_pim;
-            miss_mass = MM.M();     
-            miss_mass_sq = MM.M2();    
-            pp_inv_mass = (p_proton1 + p_proton2).M();
+				// Gets all wanted particle information	
+				getParticle(electronInfo, electrons[0]);
+				getParticle(proton1Info, protons[0]);
+				getParticle(proton2Info, protons[1]);
+				getParticle(piminusInfo, piminus[0]);
+        
+                // %%%%%%%%%%%%%%%%%%%%%%%% Calorimeter Block %%%%%%%%%%%%%%%%%%%%%%%%%%%
+                auto &calos = c12->getRECCalorimeter();
+                int ie = electrons[0]->getIndex();
+                int ip1 = protons[0]->getIndex();
+                int ip2 = protons[1]->getIndex();
+                int ipi = piminus[0]->getIndex();
 
-            // %%%%%%%%%%%%%%%%%%%%%%%% Calorimeter Block %%%%%%%%%%%%%%%%%%%%%%%%%%%
-            auto &calos = c12->getRECCalorimeter();
-            int ie = electrons[0]->getIndex();
-            int ip1 = protons[0]->getIndex();
-            int ip2 = protons[1]->getIndex();
-            int ipi = piminus[0]->getIndex();
+                float start_x = electronInfo.vx;
+                float start_y = electronInfo.vy;
+                float start_z = electronInfo.vz;
 
-            for (int i = 0; i < calos.getRows(); i++) {
-                calos.setEntry(i);
+                for (int i = 0; i < calos.getRows(); i++) {
+                    calos.setEntry(i);
 
-                int detector = calos.getDetector();  // 7 for ECAL system
-                int pindex = calos.getPindex();
-                
-                // Identify if this belongs to our primary 4 tracks
-                bool is_primary = (pindex == ie || pindex == ip1 || pindex == ip2 || pindex == ipi);
+                    int detector = calos.getDetector();  // 7 for ECAL system
+                    int pindex = calos.getPindex();
+                    
+                    // Identify if this belongs to our primary 4 tracks
+                    bool is_primary = (pindex == ie || pindex == ip1 || pindex == ip2 || pindex == ipi);
 
-                if (detector == 7 && !is_primary) {
-                    orphan_E.push_back(calos.getEnergy());
-                    orphan_x.push_back(calos.getX());
-                    orphan_y.push_back(calos.getY());
-                    orphan_z.push_back(calos.getZ());
+                    if (detector == 7 && !is_primary) {
+                        float hit_x = calos.getX();
+                        float hit_y = calos.getY();
+                        float hit_z = calos.getZ();
+
+                        float path_x = hit_x - start_x;
+                        float path_y = hit_y - start_y;
+                        float path_z = hit_z - start_z;
+
+                        orphan_E.push_back(calos.getEnergy());
+                        orphan_x.push_back(path_x);
+                        orphan_y.push_back(path_y);
+                        orphan_z.push_back(path_z);
+                    }
                 }
+                // %%%%%%%%%%%%%%%%%%%%%%%% Calorimeter Block:End %%%%%%%%%%%%%%%%%%%%%%%
+
+                tree_indiv->Fill(); 
+                n_have_topo++;
             }
-            // %%%%%%%%%%%%%%%%%%%%%%%% Calorimeter Block:End %%%%%%%%%%%%%%%%%%%%%%%
-
-            getParticle(electronInfo, electrons[0]);
-            getParticle(proton1Info, protons[0]);
-            getParticle(proton2Info, protons[1]);
-            getParticle(piminusInfo, piminus[0]);
-
-            
-            tree_indiv->Fill(); 
         }
     }
 
