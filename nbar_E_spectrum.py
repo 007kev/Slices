@@ -83,12 +83,12 @@ phi = np.arctan2(orphan_y, orphan_x) - np.arctan2(p_miss.py, p_miss.px)
 best_phi = ak.argmin(np.abs(phi), axis=1, keepdims=True)
 
 # best energy based on best theta
-best_energy = ak.flatten(orphan_E[best_theta])
+best_energy = ak.flatten(orphan_E[best_theta & best_phi])
 
 plt.figure()
 plt.hist(best_energy, bins=100, range=(0, 3), histtype='step', color='blue', alpha=1)
 plt.title("Energy of Best Candidate Hit", fontsize=16)
-plt.axvline(x=2*mass_n, color='red', linestyle='--', linewidth=2, label=r'${\bar{n}}_{mass} + n_{mass}$')
+# plt.axvline(x=2*mass_n, color='red', linestyle='--', linewidth=2, label=r'${\bar{n}}_{mass} + n_{mass}$')
 plt.xlabel("Energy from ECAL(GeV)", fontsize=16)
 plt.ylabel("Counts", fontsize=16)
 plt.yscale('log')
