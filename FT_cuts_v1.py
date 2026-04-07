@@ -11,6 +11,7 @@ import vector as vec
 import scipy as sp
 import matplotlib as mpl
 from upkit import Histo, Histo2D, RootAnalysis, Fit, tools
+import awkward as ak
 
 # constants
 mass_p = 0.938272088  # GeV/c^2 for proton
@@ -46,7 +47,7 @@ def expo_poly4(x, A ,B, a, b, c, d, e):
 # no idea who named these branches/trees
 #%%
 # Open the ROOT file and load the tree/data table which can hold different types of data
-file = uproot.open('Pppim_eFT_all.root')
+file = uproot.open('v6_kev_Pppim_eFT_all.root')
 tree = file['Individual'] # I did not name this tree, I assumed it means data from individual events not binned or summed
 
 # making arrays of momentum information for electron, pi minus, and both protons from called tree
@@ -103,19 +104,19 @@ p_pim = vec.array({'px': px_pim, "py": py_pim, "pz": pz_pim, "M": np.ones_like(p
 # MM2 = E_mm**2 - (px_mm**2 + py_mm**2 + pz_mm**2)
 MM_vec = p_beam + p_target - p_e - p_p1 - p_p2 - p_pim
 
+# .M is squaring the 4 vector and then taking the square root
+
 plt.figure()
 plt.hist(np.array(MM_vec.M), bins=200, range=(0.01, 2.5), histtype='step', color='black')
 plt.axvline(mass_n, linestyle='--', label=f'Antineutron {mass_n}GeV' )
 plt.legend()
-plt.xlabel(r'$\bar{n}$ Missing Mass(GeV)')
-plt.ylabel('Counts')
-plt.title(r"Missing Mass Distribution for $ep \to e' p' p \pi^-$ (FT)")
+plt.xlabel(r'$\bar{n}$ Missing Mass(GeV)', fontsize=16)
+plt.ylabel('Counts', fontsize=16)
+plt.title(r"Missing Mass Distribution for $ep \to e' p' p \pi^-$ (FT)", fontsize=14)
 plt.legend()
 plt.tight_layout()
 plt.savefig('FT_MM_no_cuts.pdf')
 plt.show()
-
-
 
 
 
@@ -178,9 +179,8 @@ def fit_dist(data, params, bounds, bin_num, fit_range=(0.75, 1.25)):
     # To show total detected events
     plt.axvline(x = 1, color = 'none', label = f"Total Events: {len(MM_vec.M):.3e}")
 
-    what_sigma = 1
     # remember error propagation equation with partial derivatives
-    yield_uncertainty = what_sigma*np.sqrt( 
+    yield_uncertainty = np.sqrt( 
         ((((np.sqrt(2*np.pi)*fit_params[2]) / bin_width) *A_uncertainty)**2) + 
         ((((np.sqrt(2*np.pi)*fit_params[0]) / bin_width) *sigma_uncertainty)**2) 
                                           )
@@ -209,12 +209,36 @@ def fit_dist(data, params, bounds, bin_num, fit_range=(0.75, 1.25)):
 
     plt.axvline(
         x = 1, color = 'none', 
-        label = f"$A$ = {fit_params[0]:.3g} $\pm$ {A_uncertainty:.0f}\n$\mu$ = {fit_params[1]:.3g} $\pm$ {mu_uncertainty:.1g}\n$\sigma$ = {fit_params[2]:.3g} $\pm$ {sigma_uncertainty:.1g}\nYield = {int(fit_yield)} $\pm$ {yield_uncertainty:.3g} (${what_sigma}\sigma$)")
+        label = f"$A$ = {fit_params[0]:.3g} $\pm$ {A_uncertainty:.0f}\n$\mu$ = {fit_params[1]:.3g} $\pm$ {mu_uncertainty:.1g}\n$\sigma$ = {fit_params[2]:.3g} $\pm$ {sigma_uncertainty:.1g}\nYield = {int(fit_yield)} $\pm$ {yield_uncertainty:.3g}")
 
-    # S / sqrt( S + B )
-    stat_sig = fit_params[0] / ( np.sqrt( fit_params[0] + poly4(fit_params[1], *fit_params[3:]) ) )
+    # # S / sqrt( S + B )
+    # stat_sig = fit_params[0] / ( np.sqrt( fit_params[0] + poly4(fit_params[1], *fit_params[3:]) ) )
+    # print(f'Statistical Significance = {stat_sig:.4f}')
+    # plt.axvline(x = 1, color = 'none', label = f"Statistical\nSignificance = {stat_sig:.3f}")
+
+    # 3σ window
+    what_sigma = 3
+    M_low = fit_params[1] - what_sigma*fit_params[2] # mu - 3sigma
+    M_high = fit_params[1] + what_sigma*fit_params[2] # mu + 3sigma
+
+    mass_window = (data >= M_low) & (data <= M_high)
+    total_window_counts = np.count_nonzero(mass_window)
+
+    # percent of nbar in total counts of 3sigma window
+    nbar_in_signal = fit_yield*0.9973/total_window_counts
+    print(rf'% purity of nbar = {nbar_in_signal*100:.3g}%')
+    plt.axvline(x=1, color='none', label=rf'Purity of $\bar(n)$ = {nbar_in_signal*100:.3g}%')
+
+    # Signal / sqrt( total counts )
+    S = fit_yield*0.9973 # The guassian Amplitude
+
+    stat_sig = S / ( np.sqrt( total_window_counts) )
     print(f'Statistical Significance = {stat_sig:.4f}')
-    plt.axvline(x = 1, color = 'none', label = f"Statistical\nSignificance = {stat_sig:.3f}")
+    plt.axvline(x = 1, color = 'none', label = rf"Statistical\nSignificance = {stat_sig:.3f}(${what_sigma}\sigma$ window)")
+
+    # plotting 3 sigma region for visual
+    plt.axvline(x = M_low, color='green', alpha=0.1, linestyle='--', linewidth=2, label=rf'$\pm$ {what_sigma}$\sigma$')
+    plt.axvline(x = M_high, color='green',alpha=0.1, linestyle='--', linewidth=2)
 
 
     plt.hist(data, bins = bin_num, range=fit_range, color='white')
@@ -744,7 +768,9 @@ plt.show()
 #%% MM distro with all cuts applied!!!
 plt.figure()
 fit_dist(MM_vec.M[cut_all], params, bounds, bin_num, fit_range=(0.75, 1.25))
-# plt.title(r'Fitted MM spectrum After Cuts $(W,|P|,\chi^2_{PID},\Delta t)$(FT)')
+plt.title(r'Fitted MM spectrum After Cuts $(W,|P|,\chi^2_{PID},\Delta t)$(FT)', fontsize=22)
+plt.xlabel(r'$\bar{n}$ missing mass (GeV)', fontsize=24)
+plt.ylabel('Counts/10 MeV', fontsize=24)
 plt.tight_layout()
 plt.savefig('FT_MM_all_cuts_fit.pdf')
 plt.show()
@@ -775,10 +801,11 @@ n_bar_all = vec.array({
 plt.figure()
 plt.hist(np.rad2deg(p_nbar.theta), bins = 100, color='orange', label=r'Mass Cut ($0.85, 1.15$)GeV')
 plt.hist(np.rad2deg(n_bar_all.theta), bins=100, color='green', label=r'All cuts($W,|P|,\chi^2_{PID},\Delta t$, mass cut)')
-plt.xlabel(r'$\theta_{\bar{n}}$ (deg)')
-plt.ylabel('Counts')
-plt.title(r'Lab-frame polar angle of $\bar{n}$ candidate (FD)')
-plt.legend()
+plt.xlabel(r'$\theta_{\bar{n}}$ (deg)', fontsize=18)
+plt.ylabel('Counts', fontsize=18)
+plt.title(r'Lab-frame polar angle of $\bar{n}$ candidate (FT)', fontsize=16)
+plt.legend(fontsize=14)
+plt.grid(True)
 plt.tight_layout()
 plt.savefig('FT_theta_anti_N.pdf')
 plt.show()
@@ -832,5 +859,129 @@ bounds = ((0, 0.85, 0, -np.inf, -np.inf, -np.inf, -np.inf, -np.inf),
 
 
 fit_MM_cut = Fit(tools.lorentz_poly4_fit, params, bounds, histo = h_MM_cut, signal = tools.lorentz_fit, background = tools.poly4_fit, bins = 25, range = (0.65, 1.25))
+
+#%%
+
+# loading calorimeter jagged arrays for orphaned ("non tracked") hits
+orphan_E = tree["orphan_E"].array()
+
+# loading components of orphaned hits to manually compute angles later
+orphan_x, orphan_y, orphan_z = tree["orphan_x"].array(), tree["orphan_y"].array(), tree["orphan_z"].array()
+
+
+orphan_list = ak.flatten(orphan_E)
+orphans = ak.sort(orphan_list, ascending=False) # sort energies in descending order for each event
+p_miss = p_beam + p_target - p_e - p_p1 - p_p2 - p_pim
+
+# .px, .py, .pz give the components of the missing momentum vector
+# calculate momentum magnitudes
+r_hit = np.sqrt(orphan_x**2 + orphan_y**2 + orphan_z**2)
+mag_p_miss = np.sqrt(p_miss.px**2 + p_miss.py**2 + p_miss.pz**2)
+
+# calculate angles between missing momentum vector and orphaned hits
+dot_product = (orphan_x * p_miss.px) + (orphan_y * p_miss.py) + (orphan_z * p_miss.pz)
+cos_theta = dot_product / (r_hit * mag_p_miss)
+# clamp to [-1, 1] to avoid numerical issues
+cos_theta = ak.where(cos_theta > 1.0, 1.0, cos_theta)
+cos_theta = ak.where(cos_theta < -1.0, -1.0, cos_theta)
+theta = np.arccos(cos_theta)
+
+# best theta for each event (smallest angle between any orphan hit and missing momentum vector)
+best_theta = ak.argmin(theta, axis=1, keepdims=True) 
+
+# phi angle in the transverse plane
+phi = np.arctan2(orphan_y, orphan_x) - np.arctan2(p_miss.py, p_miss.px)
+best_phi = ak.argmin(np.abs(phi), axis=1, keepdims=True)
+
+# # best energy based on best theta
+# best_energy = ak.flatten(orphan_E[best_theta & best_phi & cut_all])
+
+# 1. Define your antineutron signal window (you might have already done this above)
+mass_cut = (MM_vec.M >= 0.85) & (MM_vec.M <= 1.05)
+
+# 2. Combine your general event cuts WITH the antineutron mass cut
+nbar_cuts = cut_all & mass_cut
+
+# 3. Apply this combined boolean mask to the orphan arrays
+orphan_E_passed = orphan_E[nbar_cuts]
+theta_passed = theta[nbar_cuts]
+
+# 4. Find the best hit index as before
+best_hit_idx = ak.argmin(theta_passed, axis=1, keepdims=True)
+
+# 5. Extract the energy
+best_energy_nested = orphan_E_passed[best_hit_idx]
+best_energy = ak.flatten(ak.drop_none(best_energy_nested))
+
+plt.figure()
+plt.hist(best_energy, bins=100, range=(0, 3), histtype='step', color='blue', alpha=1)
+plt.title("Energy of Best Candidate Hit", fontsize=16)
+plt.axvline(x=2*mass_n, color='red', linestyle='--', linewidth=2, label=r'${\bar{n}}_{mass} + n_{mass}$')
+plt.xlabel("Energy from ECAL(GeV)", fontsize=16)
+plt.ylabel("Counts", fontsize=16)
+plt.yscale('log')
+plt.legend(fontsize=12)
+plt.grid(True)
+plt.show()
+plt.savefig("best_candidate_energy_spectrum.pdf")
+
+candidates = ak.sort(best_energy, ascending=False) # sort energies in descending order for each event
+
+print(f"Total best candidate hits: {len(best_energy)}")
+print(f"Highest 10 Best Candidate Energies (GeV):")
+for i, energy in enumerate(candidates[:10], 1):
+    print(f"{i}: {energy:.3f} GeV")
+
+
+#%%
+# %%
+import matplotlib as mpl
+import matplotlib.pyplot as plt
+import numpy as np
+import awkward as ak
+
+# ---------------------------------------------------------
+# 1. THE BULLETPROOF MASK
+# Require events to pass your general cuts AND have at least 1 orphan hit
+# ---------------------------------------------------------
+plot_mask = cut_all & (ak.num(orphan_E) > 0)
+
+# ---------------------------------------------------------
+# 2. APPLY THE EXACT SAME MASK TO EVERYTHING
+# ---------------------------------------------------------
+mass_aligned = MM_vec.M[plot_mask]
+orphan_E_aligned = orphan_E[plot_mask]
+theta_aligned = theta[plot_mask]
+
+# ---------------------------------------------------------
+# 3. GET THE BEST ENERGY FOR THESE EXACT EVENTS
+# ---------------------------------------------------------
+# Find the index of the smallest theta
+best_hit_idx = ak.argmin(theta_aligned, axis=1, keepdims=True)
+
+# Extract the energy and flatten it to 1D
+# Because plot_mask guarantees >= 1 hit, flattening will preserve the 1-to-1 event ratio!
+best_energy_aligned = ak.flatten(orphan_E_aligned[best_hit_idx])
+
+# ---------------------------------------------------------
+# 4. CONVERT TO NUMPY AND PLOT
+# ---------------------------------------------------------
+x_data = ak.to_numpy(best_energy_aligned)
+y_data = ak.to_numpy(mass_aligned)
+
+# Optional sanity check: print the lengths so you can see they match
+print(f"Plotting: {len(x_data)} energies against {len(y_data)} masses.")
+
+plt.figure()
+plt.hist2d(x_data, y_data, bins=100, range=((0, 2), (0, 2.5)), norm=mpl.colors.LogNorm(), cmap='inferno')
+plt.xlabel("Energy of Best Candidate Hit (GeV)", fontsize=16)
+plt.ylabel(r'$\bar{n}$ Missing Mass (GeV)', fontsize=16)
+plt.title(r'Best Candidate Energy vs $\bar{n}$ Missing Mass (FT)', fontsize=16)
+cbar = plt.colorbar()
+cbar.set_label('Counts per bin', fontsize=16)
+plt.tight_layout()
+plt.savefig('FT_best_candidate_energy_vs_MM.pdf')
+plt.show() # So you can see it in your notebook/terminal
 # %%
 plt.close('all')
+# %%
