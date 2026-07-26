@@ -1,13 +1,13 @@
-# Slices
-My undergraduate research project analyzing antineutron electroproduction using data from the CLAS12 detector at Jefferson Lab
+## Slices ✂️
+My undergraduate research project analyzing antineutron electroproduction using data from the CLAS12 detector at Jefferson Lab.
 
 # Physics Analysis (Python)
 
 These scripts contain the main physics analysis, kinematic matching algorithms, and data visualizations:
 
-- `FD_cuts_v1.py`: Analysis and momentum cuts focusing on electrons detected in the Forward Detector.
+* (./FD_cuts_v1.py/): Analysis and momentum cuts focusing on electrons detected in the Forward Detector.
 
-- `FT_cuts_v1.py`: Analysis and momentum cuts focusing on electrons detected in the Forward Tagger.
+* (./FT_cuts_v1.py/): Analysis and momentum cuts focusing on electrons detected in the Forward Tagger.
 
 
 # Data Conversion (C++ / ROOT)
