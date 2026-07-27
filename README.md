@@ -2,7 +2,10 @@
 My undergraduate research project analyzing antineutron electroproduction using data from the CLAS12 detector at Jefferson Lab.
 
 * [Research Presentation](./Research_Presentation.pdf)
-* [Research Poster](./Research_Poster.pdf)
+
+<iframe src="./Research_Poster.pdf" width="100%" height="600px">
+  This browser does not support PDFs. Please download the PDF to view it: <a href="./Research_Poster.pdf">Download PDF</a>
+</iframe>
 
 # Physics Analysis (Python)
 
