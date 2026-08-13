@@ -24,6 +24,9 @@ These files handle the low-level processing of the raw detector data:
 
 * [`hipo_to_root_annotate.ipynb`](https://github.com/007kev/Slices/blob/main/hipo_to_root_annotate.ipynb): An annotated Jupyter Notebook breaking down the C++ conversion macro line-by-line. (Highly recommended for beginners!)
 
+Later, I took shifts at Jefferson Lab to collect data and operate the target in Hall C.
+
+![Shifts](./images/shifts.jpg)
 
 # Features
 - Instructions for;
@@ -31,3 +34,7 @@ These files handle the low-level processing of the raw detector data:
     - reading the conversion macro 'hipo_to_root_annotate.ipynb'
 
 * [References sheet](https://gist.github.com/007kev)
+
+I also received special trainning and clearance to take a tour through Hall B, where the amazing CLAS12 Spectrometer was housed.
+
+![CLAS12](./images/Hall_B.jpeg)
